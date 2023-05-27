@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Image, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, Text, View, Image, TextInput, TouchableOpacity, Alert, PermissionsAndroid } from 'react-native';
 import auth from '@react-native-firebase/auth';
 import { launchImageLibrary, launchCamera, ImagePickerResponse, Asset } from 'react-native-image-picker';
 import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
@@ -12,6 +12,7 @@ const ProfilePage = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [oldPassword, setOldPassword] = useState('');
+  const [cameraPermissionGranted, setCameraPermissionGranted] = useState(false);
 
   useEffect(() => {
     const user = auth().currentUser;
@@ -22,32 +23,38 @@ const ProfilePage = () => {
     }
   }, []);
 
+  const requestCameraPermission = async () => {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+        {
+          title: 'Camera Permission',
+          message: 'App needs access to your camera',
+          buttonPositive: 'OK',
+          buttonNegative: 'Cancel',
+        }
+      );
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+        // Camera permission granted, proceed with capturing image
+        setCameraPermissionGranted(true);
+        captureProfileImage();
+      } else {
+        // Camera permission denied
+        console.log('Camera permission denied');
+      }
+    } catch (error) {
+      console.log('Error requesting camera permission:', error);
+    }
+  };
+
   const handleImagePickerResponse = async (response: ImagePickerResponse) => {
     if (!response.didCancel && !response.errorMessage) {
       const asset: Asset | undefined = response.assets && response.assets[0];
       if (asset) {
         setProfileImage(asset.uri || '');
-        await uploadProfileImage(asset.uri||"");
+        await uploadProfileImage(asset.uri || '');
       }
     }
-  };
-
-  const selectProfileImage = () => {
-    Alert.alert(
-      'Select Image',
-      'Choose an option to set your profile image',
-      [
-        {
-          text: 'Camera',
-          onPress: () => captureProfileImage(),
-        },
-        {
-          text: 'Choose from Photos',
-          onPress: () => launchImageLibrary({ mediaType: 'photo' }, handleImagePickerResponse),
-        },
-      ],
-      { cancelable: true }
-    );
   };
 
   const captureProfileImage = () => {
@@ -65,6 +72,8 @@ const ProfilePage = () => {
           photoURL: downloadURL,
         });
         console.log('Profile image uploaded successfully');
+        // You can display the updated profile image here if needed
+        // setProfileImage(downloadURL);
       } catch (error) {
         console.log('Error uploading profile image:', error);
         Alert.alert('Error', 'Failed to upload profile image. Please try again.');
@@ -104,7 +113,7 @@ const ProfilePage = () => {
 
       // Update password if it has been changed
       if (newPassword !== '' && newPassword === confirmPassword) {
-        const credential = auth.EmailAuthProvider.credential(user.email||"", oldPassword);
+        const credential = auth.EmailAuthProvider.credential(user.email || '', oldPassword);
         user
           .reauthenticateWithCredential(credential)
           .then(() => {
@@ -125,6 +134,29 @@ const ProfilePage = () => {
       }
     }
   };
+
+  const selectProfileImage = async () => {
+    if (cameraPermissionGranted) {
+      captureProfileImage();
+    } else {
+      Alert.alert(
+        'Select Image',
+        'Choose an option to set your profile image',
+        [
+          {
+            text: 'Camera',
+            onPress: () => captureProfileImage(),
+          },
+          {
+            text: 'Choose from Photos',
+            onPress: () => launchImageLibrary({ mediaType: 'photo' }, handleImagePickerResponse),
+          },
+        ],
+        { cancelable: true }
+      );
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.profileContainer}>
@@ -159,8 +191,18 @@ const ProfilePage = () => {
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
+          placeholder="Old Password"
+          placeholderTextColor="white"
+          secureTextEntry
+          value={oldPassword}
+          onChangeText={(text) => setOldPassword(text)}
+        />
+      </View>
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
           placeholder="New Password"
-          placeholderTextColor={'white'}
+          placeholderTextColor="white"
           secureTextEntry
           value={newPassword}
           onChangeText={(text) => setNewPassword(text)}
@@ -170,7 +212,7 @@ const ProfilePage = () => {
         <TextInput
           style={styles.input}
           placeholder="Confirm Password"
-          placeholderTextColor={'white'}
+          placeholderTextColor="white"
           secureTextEntry
           value={confirmPassword}
           onChangeText={(text) => setConfirmPassword(text)}
@@ -221,11 +263,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 10,
     backgroundColor: '#1cb48c', // Set input background color
+    color: 'white',
   },
   buttonContainer: {
     width: '70%',
     height: 50,
-    backgroundColor: '#1cb48c', // Set button background color
+    backgroundColor: 'white', // Set button background color
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -233,7 +276,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   buttonText: {
-    color: 'white',
+    color: '#1cb48c',
     fontSize: 16,
     fontWeight: 'bold',
   },
