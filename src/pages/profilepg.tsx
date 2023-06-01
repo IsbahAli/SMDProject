@@ -145,7 +145,7 @@ const ProfilePage = () => {
         [
           {
             text: 'Camera',
-            onPress: () => captureProfileImage(),
+            onPress: () => requestCameraPermission(),
           },
           {
             text: 'Choose from Photos',
