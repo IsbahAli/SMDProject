@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "238221067540",
+    "firebase_url": "https://riothrifty-default-rtdb.firebaseio.com",
     "project_id": "riothrifty",
     "storage_bucket": "riothrifty.appspot.com"
   },

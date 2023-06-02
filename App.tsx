@@ -7,6 +7,8 @@ import SplashPage from './src/pages/splashpg';
 // import DrawerNavigator from './src/pages/drawerNavigatorpg';
 import HomeTabs from './src/pages/hometabs';
 import ProfilePage from './src/pages/profilepg';
+import AdDetailsPage from './src/pages/addetailspg';
+import ChatScreen from './src/pages/chatscreenpg';
 
 const Stack = createNativeStackNavigator();
 
@@ -19,6 +21,8 @@ const App = () => {
         <Stack.Screen name="SignUpPg" component={SignUpPage} options={{ headerShown: false }} />
         <Stack.Screen name="HomePg" component={HomeTabs} options={{ headerShown: false }} />
         <Stack.Screen name="Profile" component={ProfilePage} options={{ headerShown: false }} />
+        <Stack.Screen name="AdDetails" component={AdDetailsPage} options={{ headerShown: false }} />
+        <Stack.Screen name="ChatScreen" component={ChatScreen} options={{ headerShown: false }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

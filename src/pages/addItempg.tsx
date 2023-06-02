@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { View, TextInput, Button, Text, Alert, StyleSheet, ScrollView, Image, Modal, TouchableOpacity } from 'react-native';
 import ImageCropPicker, { Image as CropPickerImage } from 'react-native-image-crop-picker';
+import auth from '@react-native-firebase/auth';
+import database from '@react-native-firebase/database';
 
-const AddItemPage = () => {
+const AddItemPage = ({ navigation }:any) => {
   const [images, setImages] = useState<CropPickerImage[]>([]);
   const [price, setPrice] = useState('');
   const [condition, setCondition] = useState<'new' | 'used'>();
@@ -11,17 +13,18 @@ const AddItemPage = () => {
   const [description, setDescription] = useState('');
   const [selectedImage, setSelectedImage] = useState<CropPickerImage | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-
+  const [userName, setUserName] = useState('');
+  const [sellerName,setSellerName] =useState('');
   const handleImageUpload = () => {
     const remainingSlots = 20 - images.length;
-  
+
     if (remainingSlots <= 0) {
       Alert.alert('Error', 'You have reached the maximum limit of 20 images.');
       return;
     }
-  
+
     const maxFiles = remainingSlots < 5 ? remainingSlots : 5; // Limit to 5 files if remaining slots are less than 5
-  
+
     ImageCropPicker.openPicker({
       mediaType: 'photo',
       multiple: true,
@@ -43,7 +46,7 @@ const AddItemPage = () => {
         console.log('ImagePicker Error: ', error);
       });
   };
-  
+
   const handleConditionSelection = (selectedCondition: 'new' | 'used') => {
     setCondition(selectedCondition);
   };
@@ -57,15 +60,84 @@ const AddItemPage = () => {
       Alert.alert('Error', 'Please enter a title.');
       return;
     }
-
+    if (!description) {
+      Alert.alert('Error', 'Please enter a description.');
+      return;
+    }
     if (!condition) {
       Alert.alert('Error', 'Please select an item condition.');
       return;
     }
-
-    // Proceed with the next button logic here
+  
+    const currentUser = auth().currentUser;
+    if (currentUser) {
+      const userId = currentUser.uid;
+      setUserName(currentUser.displayName || '');
+      const itemData = {
+        title,
+        condition,
+        price,
+        location,
+        description,
+        images: images.map((image) => image.path),
+        sellerName:userName
+      };
+  
+      console.log('Before saving data to Firebase');
+      console.log('Item data:', itemData);
+  
+      const newItemRef = database().ref(`users/${userId}/items`).push();
+      const newItemKey = newItemRef.key;
+  
+      if (newItemKey) {
+        // Save item data under the user's node
+        newItemRef
+          .set(itemData)
+          .then(() => {
+            console.log('Item data saved under user node');
+  
+            // Save item data under the cumulative ads node
+            database()
+              .ref('ads')
+              .child(newItemKey)
+              .set(itemData)
+              .then(() => {
+                console.log('Item data saved under ads node');
+  
+                setTitle('');
+                setCondition(undefined);
+                setPrice('');
+                setLocation('');
+                setDescription('');
+                setImages([]);
+                setSelectedImage(null);
+                setModalVisible(false);
+                Alert.alert('Ad posted!');
+                navigation.navigate('HomePg');
+              })
+              .catch((error: any) => {
+                console.log('Firebase Error:', error);
+                Alert.alert('Error', 'Failed to save data to Firebase.');
+              });
+          })
+          .catch((error: any) => {
+            console.log('Firebase Error:', error);
+            Alert.alert('Error', 'Failed to save data to Firebase.');
+          });
+      } else {
+        console.log('Failed to generate a new item key.');
+        Alert.alert('Error', 'Failed to generate a new item key.');
+      }
+    } else {
+      // No authenticated user found
+      Alert.alert('Error', 'No authenticated user found.');
+    }
+  
+    console.log('After saving data to Firebase');
   };
-
+  
+  
+  
   const handleImageClick = (image: CropPickerImage) => {
     setSelectedImage(image);
     setModalVisible(true);
@@ -88,7 +160,9 @@ const AddItemPage = () => {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.text}>Add Images (up to 20)</Text>
-      <Button title="Select Images" onPress={handleImageUpload} />
+      <TouchableOpacity onPress={handleImageUpload} style={styles.button}>
+        <Text style={styles.buttonText}>Select Images</Text>
+      </TouchableOpacity>
 
       {images.length > 0 && (
         <View>
@@ -117,7 +191,7 @@ const AddItemPage = () => {
 
       <Text style={styles.text}>Item Condition</Text>
       <View style={styles.conditionButtonsContainer}>
-      <TouchableOpacity
+        <TouchableOpacity
           onPress={() => handleConditionSelection('new')}
           style={[styles.button, condition === 'new' && styles.buttonSelected]}
         >
@@ -132,18 +206,13 @@ const AddItemPage = () => {
         </TouchableOpacity>
       </View>
 
-      {/* <Text style={styles.text}>Choose Location</Text>
-      <RNPickerSelect
+      <Text style={styles.text}>Choose Location</Text>
+      <TextInput
         value={location}
-        onValueChange={handleLocationSelection}
-        placeholder={{ label: 'Select location', value: null }}
-        items={[
-          { label: 'Location 1', value: 'location1' },
-          { label: 'Location 2', value: 'location2' },
-          { label: 'Location 3', value: 'location3' },
-          // Add more locations
-        ]}
-      /> */}
+        onChangeText={handleLocationSelection}
+        placeholder="Enter location"
+        style={styles.input}
+      />
 
       <Text style={styles.text}>Title</Text>
       <TextInput
@@ -161,7 +230,7 @@ const AddItemPage = () => {
         style={styles.input}
       />
 
-      <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.button}>
+      <TouchableOpacity onPress={handleNext} style={styles.button}>
         <Text style={styles.buttonText}>Next</Text>
       </TouchableOpacity>
 
@@ -171,7 +240,7 @@ const AddItemPage = () => {
             <Image source={{ uri: selectedImage.path }} style={styles.modalImage} />
 
             <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.button}>
-            <Text style={styles.buttonText}>Close</Text>
+              <Text style={styles.buttonText}>Close</Text>
             </TouchableOpacity>
           </View>
         </Modal>
@@ -195,25 +264,45 @@ const styles = StyleSheet.create({
   },
   input: {
     width: '70%',
-    height: 50,
+    height: 40,
     borderWidth: 1,
     borderColor: 'gray',
-    borderRadius: 10,
-    padding: 10,
-    backgroundColor: '#1cb48c',
-    color: 'white',
-    marginBottom: 20,
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+    backgroundColor: 'white',
+  },
+  button: {
+    width: '50%',
+    height: 40,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 5,
+    marginTop: 10,
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1cb48c',
   },
   conditionButtonsContainer: {
     flexDirection: 'row',
-    marginBottom: 20,
+    justifyContent: 'space-between',
+    width: '70%',
+    marginBottom: 10,
+  },
+  buttonSelected: {
+    backgroundColor: 'green',
+    borderColor:'gray',
+    borderWidth: 1,
+
   },
   imagesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
+    marginTop: 10,
   },
   image: {
     width: 100,
@@ -223,7 +312,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     backgroundColor: 'black',
   },
   modalImage: {
@@ -231,24 +320,6 @@ const styles = StyleSheet.create({
     height: '100%',
     resizeMode: 'contain',
   },
-  button: {
-    width: '45%',
-    height: 50,
-    backgroundColor: 'white', // Set button background color
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderColor: 'gray',
-    borderWidth: 1,
-  },
-  buttonText: {
-    color: '#1cb48c',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  buttonSelected: {
-    backgroundColor: '#006600',
-  }
 });
 
 export default AddItemPage;

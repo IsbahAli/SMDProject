@@ -5,6 +5,8 @@ import ProfilePage from './profilepg';
 import MainProfilePage from './profilescr';
 import HomePage from './homepg';
 import AddItemPage from './addItempg';
+import MyAdsPage from './myadpg';
+import ChatPage from './chatpg';
 
 // import {createDrawerNavigator} from '@react-navigation/drawer';
 
@@ -31,9 +33,9 @@ const HomeTabs = () => {
           },
         }}
       />
-      {/* <Tab.Screen
+      <Tab.Screen
         name="Chats"
-        component={Settings}
+        component={ChatPage}
         options={{
           tabBarIcon: tabInfo => {
             return (
@@ -45,7 +47,7 @@ const HomeTabs = () => {
             );
           },
         }}
-      /> */}
+      />
       {/* <Tab.Screen
         name="Sell"
         component={Profile}
@@ -70,6 +72,26 @@ const HomeTabs = () => {
             return (
               <MatIcons
               name={tabInfo.focused ? 'add-circle' : 'add-circle-outline'}
+              size={28}
+              color="black"
+              />
+            );
+          },
+          tabBarLabelStyle: {
+            fontSize: 12,
+            color: 'black',
+          },
+        }}
+      />
+      <Tab.Screen
+        name="My Ads"
+        component={MyAdsPage}
+        options={{
+          tabBarIcon: tabInfo => {
+            return (
+              <MatIcons
+              name={tabInfo.focused ? 'favorite' : 'favorite-border'}
+              
               size={28}
               color="black"
               />
