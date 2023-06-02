@@ -23,7 +23,6 @@ const SplashPage = ({ navigation }:any) => {
     <View style={styles.container}>
       <Image source={{uri:'https://karachithriftstore.com/wp-content/uploads/2023/03/cropped-KTS-logo.jpeg'}} style={styles.logo} />
       <Text style={styles.title}>Shop smarter, save better!</Text>
-      <Text style={styles.subtitle}>Making your life better!</Text>
     </View>
   );
 };
