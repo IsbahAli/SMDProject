@@ -11,7 +11,8 @@ interface Ad {
   location: string;
   condition: string;
   images: string[]; // Array of image URLs
-  sellerName: string; // Seller's name
+  sellerName: string; 
+  sellerId:string;// Seller's name
   // Add other ad properties as needed
 }
 
@@ -20,6 +21,7 @@ const HomePage = ({ navigation }: any) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [userName, setUserName] = useState('');
   const [userImage, setUserImage] = useState('');
+  const [userIds, setUserId] = useState('');
   const [logoutConfirmationVisible, setLogoutConfirmationVisible] = useState(false);
 
   useEffect(() => {
@@ -47,13 +49,15 @@ const HomePage = ({ navigation }: any) => {
     const currentUser = auth().currentUser;
     if (currentUser) {
       const userId = currentUser.uid;
+      const userN=currentUser.displayName;
+      console.log("yter",userN)
+      setUserId(userId);
+      setUserName(userN||'');
       const userRef = database().ref(`users/${userId}`);
       userRef.once('value').then((snapshot) => {
         const userData = snapshot.val();
         if (userData) {
-          const { username, image } = userData;
-          setUserName(currentUser.displayName || '');
-          setUserImage(image);
+          //setUserName(currentUser.displayName || '');
         }
       });
     }
@@ -70,7 +74,8 @@ const HomePage = ({ navigation }: any) => {
   }, []);
 
   const handleAdPress = (ad: Ad) => {
-    navigation.navigate('AdDetails', { ad, sellerName: ad.sellerName });
+    console.log("heloo",userName)
+    navigation.navigate('AdDetails', { ad,userid:userIds,username:userName });
   };
 
   const showLogoutConfirmation = () => {
@@ -84,7 +89,7 @@ const HomePage = ({ navigation }: any) => {
   const handleConfirmLogout = () => {
     // Perform logout logic here
     hideLogoutConfirmation();
-    navigation.navigate('Login'); // or navigate to any other screen after logout
+    navigation.navigate('LoginPg'); // or navigate to any other screen after logout
   };
 
   const handleCancelLogout = () => {

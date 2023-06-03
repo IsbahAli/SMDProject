@@ -1,80 +1,122 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList } from 'react-native';
 import database from '@react-native-firebase/database';
-
+import auth from '@react-native-firebase/auth';
 const ChatScreen = ({ route }: any) => {
-  const { chatData, currentUser } = route.params;
-  const [messages, setMessages] = useState<{ id: number; sender: string; message: string; }[]>([]);
-  const [newMessage, setNewMessage] = useState('');
+  const { chatData } = route.params;
+  console.debug("ba",chatData);
+  const { senderId, receiverId, receiverName, senderName } = chatData;
+  const [message, setMessage] = useState('');
+  const [messages, setMessages] = useState<any[]>([]);
 
-  useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        const snapshot = await database().ref(`chats/${chatData.id}/messages`).once('value');
-        const messagesData = snapshot.val();
-
-        if (messagesData) {
-          const messagesArray = Object.keys(messagesData).map((key) => ({
-            id: Number(key),
-            sender: messagesData[key].sender,
-            message: messagesData[key].message,
-          }));
-
-          setMessages(messagesArray);
-        }
-      } catch (error) {
-        console.log('Error fetching messages:', error);
-      }
-    };
-
-    fetchMessages();
-  }, [chatData.id]);
-
-  const sendMessage = async () => {
-    if (newMessage.trim() === '') {
-      return;
-    }
-
+  // Reference to the chat node in Firebase Realtime Database
+  const chatRef = database().ref('chats');
+  const currentUser = auth().currentUser;
+  const currentUserId = currentUser?.uid || '';
+  // Function to save a message in the chat history
+  const saveMessage = async (
+    senderId: string,
+    receiverId: string,
+    message: string,
+    senderName: string,
+    receiverName: string
+  ) => {
     try {
-      const newMessageRef = database().ref(`chats/${chatData.id}/messages`).push();
-      await newMessageRef.set({
-        sender: currentUser,
-        message: newMessage,
+      await chatRef.push().set({
+        senderId,
+        receiverId,
+        message,
+        senderName,
+        receiverName,
+        timestamp: Date.now(),
       });
-
-      setNewMessage('');
     } catch (error) {
-      console.log('Error sending message:', error);
+      console.log('Error saving message:', error);
     }
   };
 
-  const renderMessageItem = ({ item }: any) => (
-    <View style={styles.messageItem}>
-      <Text style={styles.messageSender}>{item.sender}</Text>
-      <Text style={styles.messageText}>{item.message}</Text>
-    </View>
-  );
+  // Function to load the chat history for the current user
+  const loadChatHistory = async (userId: string, sellerId: string) => {
+    try {
+      console.log('Loading chat history...');
+      chatRef.on('value', (snapshot) => {
+        if (snapshot.exists()) {
+          const chatData = snapshot.val();
+
+          const userChatData = Object.values(chatData).filter(
+            (message: any) =>
+              (message.senderId === userId && message.receiverId === sellerId) ||
+              (message.senderId === sellerId && message.receiverId === userId)
+          );
+
+          const sortedMessages = userChatData.sort((a: any, b: any) => a.timestamp - b.timestamp);
+
+          const loadedMessages = sortedMessages.map((message: any) => ({
+            id: message.timestamp.toString(),
+            message: message.message,
+            senderId: message.senderId,
+          }));
+
+          setMessages(loadedMessages);
+        }
+      });
+    } catch (error) {
+      console.log('Error loading chat history:', error);
+    }
+  };
+
+  useEffect(() => {
+    // Load the chat history for the current user
+    loadChatHistory(senderId, receiverId);
+
+    // Cleanup the chat listener when the component is unmounted
+    return () => {
+      chatRef.off();
+    };
+  }, []);
+
+  const handleSendMessage = () => {
+    if (message.trim() !== '') {
+        const isCurrentUserSender = senderId === currentUserId;
+
+        if (isCurrentUserSender) {
+          saveMessage(senderId, receiverId, message, senderName, receiverName);
+        } else {
+          saveMessage(receiverId, senderId, message, receiverName, senderName);
+        }
+        
+      // Clear the input field
+      setMessage('');
+    }
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{chatData.seller}</Text>
-
+      <Text style={styles.headerText}>{senderName}</Text>
       <FlatList
         data={messages}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={renderMessageItem}
-        style={styles.messageList}
-        inverted
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+            <View
+              style={
+                item.senderId === senderId
+                  ? styles.sentMessageContainer
+                  : styles.receivedMessageContainer
+              }
+            >
+            <Text style={styles.message}>{item.message}</Text>
+          </View>
+        )}
       />
 
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
-          placeholder="Type a message..."
-          value={newMessage}
-          onChangeText={setNewMessage}
+          placeholder="Type a message"
+          value={message}
+          onChangeText={(text) => setMessage(text)}
         />
-        <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
+        <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
           <Text style={styles.sendButtonText}>Send</Text>
         </TouchableOpacity>
       </View>
@@ -85,54 +127,63 @@ const ChatScreen = ({ route }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#F5F5F5',
+    padding: 10,
   },
-  title: {
-    fontSize: 20,
+  headerText: {
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 16,
+    marginBottom: 10,
+    textAlign: 'center',
   },
-  messageList: {
-    flex: 1,
-    marginTop: 16,
-    marginBottom: 16,
+  messageContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
   },
-  messageItem: {
-    padding: 8,
-    backgroundColor: '#f2f2f2',
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  messageSender: {
+  message: {
     fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  messageText: {
-    fontSize: 14,
-    color: '#333333',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#CCCCCC',
+    paddingTop: 10,
   },
   input: {
     flex: 1,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#cccccc',
-    borderRadius: 8,
-    marginRight: 8,
+    height: 40,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 10,
   },
   sendButton: {
-    padding: 8,
-    backgroundColor: '#3f51b5',
-    borderRadius: 8,
+    marginLeft: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#1CB48C',
+    borderRadius: 20,
   },
   sendButtonText: {
-    color: '#ffffff',
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: 'bold',
+  },
+  receivedMessageContainer: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#DCF8C5',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
+  },
+  sentMessageContainer: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
   },
 });
 

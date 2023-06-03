@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ScrollView, Modal, TouchableOpacity, Image } fr
 import Swiper from 'react-native-swiper';
 
 const AdDetailsPage = ({ navigation, route }: any) => {
-  const { ad,sellerName  } = route.params;
+  const { ad, userid,username } = route.params;
+  console.log("hid",username);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const [modalVisible, setModalVisible] = useState<boolean>(false);
 
@@ -13,15 +14,19 @@ const AdDetailsPage = ({ navigation, route }: any) => {
   };
 
   const handleChat = () => {
-    // Get the necessary data to initiate the chat, such as the user ID or ad details
-    const chatData = {
-      adId: ad.id,
-      userId: ad.userId,
-      // ... add any other relevant data
-    };
-
-    // Navigate to the chat screen and pass the chat data
-    navigation.navigate('ChatScreen', { chatData });
+    // Compare the seller ID with the current user's ID
+    if (ad.sellerId !== userid) {
+      // Get the necessary data to initiate the chat, such as the user ID or ad details
+      const chatData = {
+        receiverId: userid,
+        senderId: ad.sellerId, // ... add any other relevant data
+        senderName: ad.sellerName,
+        receiverName:username
+      };
+      console.log("TEsting212",chatData);
+      // Navigate to the chat screen and pass the chat data
+      navigation.navigate('ChatScreen', { chatData });
+    }
   };
 
   return (
@@ -42,7 +47,7 @@ const AdDetailsPage = ({ navigation, route }: any) => {
         <Text style={styles.details}>Price: {ad.price}</Text>
         <Text style={styles.details}>Location: {ad.location}</Text>
         <Text style={styles.details}>Condition: {ad.condition}</Text>
-        <Text style={styles.details}>Seller: {sellerName}</Text>
+        <Text style={styles.details}>Seller: {ad.sellerName}</Text>
         {/* Add other ad details as needed */}
       </View>
 
@@ -68,9 +73,11 @@ const AdDetailsPage = ({ navigation, route }: any) => {
         </Modal>
       )}
 
-      <TouchableOpacity onPress={handleChat} style={styles.chatButton}>
-        <Text style={styles.chatButtonText}>Chat with Seller</Text>
-      </TouchableOpacity>
+      {ad.sellerId !== userid && (
+        <TouchableOpacity onPress={handleChat} style={styles.chatButton}>
+          <Text style={styles.chatButtonText}>Chat with Seller</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 };

@@ -1,100 +1,99 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
 import database from '@react-native-firebase/database';
+import auth from '@react-native-firebase/auth';
+
+interface ChatData {
+  id: string;
+  receiverId: string;
+  senderId: string;
+  senderName: string;
+  receiverName: string;
+}
 
 const ChatPage = ({ navigation }: any) => {
-  const [sellerChats, setSellerChats] = useState<{ id: number; seller: string; message: string; }[]>([]);
-  const [buyerChats, setBuyerChats] = useState<{ id: number; buyer: string; message: string; }[]>([]);
+  const [chats, setChats] = useState<ChatData[]>([]);
+
+  // Reference to the chat node in Firebase Realtime Database
+  const chatRef = database().ref('chats');
+  const currentUser = auth().currentUser;
+  const currentUserId = currentUser?.uid || '';
 
   useEffect(() => {
-    const fetchSellerChats = async () => {
-      try {
-        const snapshot = await database().ref('sellerChats').once('value');
-        const chatsData = snapshot.val();
-
-        if (chatsData) {
-          const chatsArray = Object.keys(chatsData).map((key) => ({
-            id: Number(key),
-            seller: chatsData[key].seller,
-            message: chatsData[key].message,
-          }));
-
-          setSellerChats(chatsArray);
+    const loadChats = async () => {
+        try {
+          // Retrieve the chats from the chat node where the current user is the receiver
+          chatRef
+            .orderByChild('receiverId')
+            .equalTo(currentUserId)
+            .on('value', snapshot => {
+              if (snapshot.exists()) {
+                const chatData = snapshot.val();
+      
+                // Filter out duplicate chats where the sender and receiver are the same
+                const filteredChats = Object.values(chatData).filter(
+                  (chat: any) => chat.senderId !== chat.receiverId
+                );
+      
+                // Get unique senderIds
+                const uniqueSenderIds = Array.from(new Set(filteredChats.map((chat: any) => chat.senderId)));
+      
+                // Map the filtered and unique chat data to chats
+                const loadedChats: ChatData[] = uniqueSenderIds.map((senderId: string) => {
+                  const chat: any = filteredChats.find((chat: any) => chat.senderId === senderId);
+                  return {
+                    id: chat.id,
+                    senderId: chat.senderId,
+                    senderName: chat.senderName,
+                    receiverId: chat.receiverId,
+                    receiverName: chat.receiverName,
+                  };
+                });
+      
+                // Update the chats state with the retrieved chats
+                setChats(loadedChats);
+              } else {
+                // If there are no chats, set the chats state to an empty array
+                setChats([]);
+              }
+            });
+        } catch (error) {
+          console.log('Error loading chats:', error);
         }
-      } catch (error) {
-        console.log('Error fetching seller chats:', error);
-      }
+      };
+      
+    loadChats();
+
+    // Cleanup the chat listener when the component is unmounted
+    return () => {
+      chatRef.off();
     };
-
-    const fetchBuyerChats = async () => {
-      try {
-        const snapshot = await database().ref('buyerChats').once('value');
-        const chatsData = snapshot.val();
-
-        if (chatsData) {
-          const chatsArray = Object.keys(chatsData).map((key) => ({
-            id: Number(key),
-            buyer: chatsData[key].buyer,
-            message: chatsData[key].message,
-          }));
-
-          setBuyerChats(chatsArray);
-        }
-      } catch (error) {
-        console.log('Error fetching buyer chats:', error);
-      }
-    };
-
-    fetchSellerChats();
-    fetchBuyerChats();
   }, []);
 
-  const renderSellerChatItem = ({ item }: any) => (
-    <TouchableOpacity
-      style={styles.chatItem}
-      onPress={() => navigation.navigate('ChatScreen', { chatData: item, currentUser: 'current_user_id' })}
-    >
-      <Text style={styles.chatUser}>{item.seller}</Text>
-      <Text style={styles.chatMessage}>{item.message}</Text>
-    </TouchableOpacity>
-  );
-
-  const renderBuyerChatItem = ({ item }: any) => (
-    <TouchableOpacity
-      style={styles.chatItem}
-      onPress={() => navigation.navigate('ChatScreen', { chatData: item, currentUser: 'current_user_id' })}
-    >
-      <Text style={styles.chatUser}>{item.buyer}</Text>
-      <Text style={styles.chatMessage}>{item.message}</Text>
-    </TouchableOpacity>
-  );
+  const handleChatItemClick = (chatData: ChatData) => {
+    // Navigate to the chat screen and pass the chat data
+    navigation.navigate('ChatScreen', {
+      chatData,
+    });
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Chats</Text>
-      <Text style={styles.tab}>Seller Chats</Text>
-      {sellerChats.length > 0 ? (
-        <FlatList
-          data={sellerChats}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderSellerChatItem}
-          style={styles.chatList}
-        />
-      ) : (
-        <Text style={styles.noChatsText}>No seller chats yet.</Text>
-      )}
-
-      <Text style={styles.tab}>Buyer Chats</Text>
-      {buyerChats.length > 0 ? (
-        <FlatList
-          data={buyerChats}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderBuyerChatItem}
-          style={styles.chatList}
-        />
-      ) : (
-        <Text style={styles.noChatsText}>No buyer chats yet.</Text>
-      )}
+      <Text style={styles.headerText}>Chats</Text>
+      <FlatList
+        data={chats}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.chatItem}
+            onPress={() => handleChatItemClick(item)}
+          >
+            <Text style={styles.chatItemText}>
+              {item.senderId === currentUserId ? item.receiverName : item.senderName}
+            </Text>
+          </TouchableOpacity>
+        )}
+      />
     </View>
   );
 };
@@ -102,40 +101,23 @@ const ChatPage = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1cb48c',
+    padding: 10,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  tab: {
+  headerText: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginTop: 16,
-  },
-  chatList: {
-    flex: 1,
+    marginBottom: 10,
+    textAlign: 'center',
   },
   chatItem: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#cccccc',
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
   },
-  chatUser: {
+  chatItemText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  chatMessage: {
-    fontSize: 14,
-    color: '#666666',
-  },
-  noChatsText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 32,
   },
 });
 

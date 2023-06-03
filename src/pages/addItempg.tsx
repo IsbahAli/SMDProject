@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import { View, TextInput, Button, Text, Alert, StyleSheet, ScrollView, Image, Modal, TouchableOpacity } from 'react-native';
 import ImageCropPicker, { Image as CropPickerImage } from 'react-native-image-crop-picker';
 import auth from '@react-native-firebase/auth';
@@ -14,7 +14,119 @@ const AddItemPage = ({ navigation }:any) => {
   const [selectedImage, setSelectedImage] = useState<CropPickerImage | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [userName, setUserName] = useState('');
-  const [sellerName,setSellerName] =useState('');
+  const [sellerName,setSellerName] =useState<string | null>(null);
+  const [sellerId, setSellerId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => {
+    const fetchUserName = async () => {
+      const currentUser = auth().currentUser;
+      if (currentUser) {
+        setUserName(currentUser.displayName || '');
+        setSellerId(currentUser.uid || null);
+      }
+    };
+
+    fetchUserName();
+  }, []);
+
+  useEffect(() => {
+    if (userName) {
+      updateSellerName(userName);
+    }
+  }, [userName]);
+
+  const updateSellerName = (name: string) => {
+    setSellerName(name);
+    setIsLoading(false);
+  };
+
+  const handleNext = () => {
+    // Check if the userName is still loading
+    if (isLoading) {
+      Alert.alert('Please wait', 'User information is still loading. Please wait a moment.');
+      return;
+    }
+
+    if (!title) {
+      Alert.alert('Error', 'Please enter a title.');
+      return;
+    }
+
+    if (!description) {
+      Alert.alert('Error', 'Please enter a description.');
+      return;
+    }
+
+    if (!condition) {
+      Alert.alert('Error', 'Please select an item condition.');
+      return;
+    }
+
+    if (!images || images.length === 0) {
+      Alert.alert('Error', 'Please select at least one image.');
+      return;
+    }
+
+    if (!sellerName || !sellerId) {
+      Alert.alert('Error', 'Seller name is missing. Please try again.');
+      return;
+    }
+
+    const currentUser = auth().currentUser;
+    if (currentUser) {
+      const userId = currentUser.uid;
+
+      const itemData = {
+        title,
+        condition,
+        price,
+        location,
+        description,
+        images: images.map((image) => image.path),
+        sellerName,
+        sellerId,
+      };
+
+      const newItemRef = database().ref(`users/${userId}/items`).push();
+      const newItemKey = newItemRef.key;
+
+      if (newItemKey) {
+        newItemRef
+          .set(itemData)
+          .then(() => {
+            database()
+              .ref('ads')
+              .child(newItemKey)
+              .set(itemData)
+              .then(() => {
+                setTitle('');
+                setCondition(undefined);
+                setPrice('');
+                setLocation('');
+                setDescription('');
+                setImages([]);
+                setSelectedImage(null);
+                setModalVisible(false);
+                setSellerName('');
+                Alert.alert('Ad posted!');
+                navigation.navigate('HomePg');
+              })
+              .catch((error: any) => {
+                console.log('Firebase Error:', error);
+                Alert.alert('Error', 'Failed to save data to Firebase.');
+              });
+          })
+          .catch((error: any) => {
+            console.log('Firebase Error:', error);
+            Alert.alert('Error', 'Failed to save data to Firebase.');
+          });
+      } else {
+        Alert.alert('Error', 'Failed to generate item key.');
+      }
+    } else {
+      Alert.alert('Error', 'User not logged in.');
+    }
+  };
   const handleImageUpload = () => {
     const remainingSlots = 20 - images.length;
 
@@ -54,90 +166,6 @@ const AddItemPage = ({ navigation }:any) => {
   const handleLocationSelection = (selectedLocation: string) => {
     setLocation(selectedLocation);
   };
-
-  const handleNext = () => {
-    if (!title) {
-      Alert.alert('Error', 'Please enter a title.');
-      return;
-    }
-    if (!description) {
-      Alert.alert('Error', 'Please enter a description.');
-      return;
-    }
-    if (!condition) {
-      Alert.alert('Error', 'Please select an item condition.');
-      return;
-    }
-  
-    const currentUser = auth().currentUser;
-    if (currentUser) {
-      const userId = currentUser.uid;
-      setUserName(currentUser.displayName || '');
-      const itemData = {
-        title,
-        condition,
-        price,
-        location,
-        description,
-        images: images.map((image) => image.path),
-        sellerName:userName
-      };
-  
-      console.log('Before saving data to Firebase');
-      console.log('Item data:', itemData);
-  
-      const newItemRef = database().ref(`users/${userId}/items`).push();
-      const newItemKey = newItemRef.key;
-  
-      if (newItemKey) {
-        // Save item data under the user's node
-        newItemRef
-          .set(itemData)
-          .then(() => {
-            console.log('Item data saved under user node');
-  
-            // Save item data under the cumulative ads node
-            database()
-              .ref('ads')
-              .child(newItemKey)
-              .set(itemData)
-              .then(() => {
-                console.log('Item data saved under ads node');
-  
-                setTitle('');
-                setCondition(undefined);
-                setPrice('');
-                setLocation('');
-                setDescription('');
-                setImages([]);
-                setSelectedImage(null);
-                setModalVisible(false);
-                Alert.alert('Ad posted!');
-                navigation.navigate('HomePg');
-              })
-              .catch((error: any) => {
-                console.log('Firebase Error:', error);
-                Alert.alert('Error', 'Failed to save data to Firebase.');
-              });
-          })
-          .catch((error: any) => {
-            console.log('Firebase Error:', error);
-            Alert.alert('Error', 'Failed to save data to Firebase.');
-          });
-      } else {
-        console.log('Failed to generate a new item key.');
-        Alert.alert('Error', 'Failed to generate a new item key.');
-      }
-    } else {
-      // No authenticated user found
-      Alert.alert('Error', 'No authenticated user found.');
-    }
-  
-    console.log('After saving data to Firebase');
-  };
-  
-  
-  
   const handleImageClick = (image: CropPickerImage) => {
     setSelectedImage(image);
     setModalVisible(true);
