@@ -3,7 +3,7 @@ import { View, Text, TextInput, StyleSheet, ScrollView, Dimensions, TouchableOpa
 import { useNavigation } from '@react-navigation/native';
 import database from '@react-native-firebase/database';
 import auth from '@react-native-firebase/auth';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 interface Ad {
   title: string;
   description: string;
@@ -46,21 +46,34 @@ const HomePage = ({ navigation }: any) => {
       setAds(adsArray as Ad[]);
     });
 
-    const currentUser = auth().currentUser;
-    if (currentUser) {
-      const userId = currentUser.uid;
-      const userN=currentUser.displayName;
-      console.log("yter",userN)
-      setUserId(userId);
-      setUserName(userN||'');
-      const userRef = database().ref(`users/${userId}`);
-      userRef.once('value').then((snapshot) => {
-        const userData = snapshot.val();
-        if (userData) {
-          //setUserName(currentUser.displayName || '');
+    const fetchUserName = async () => {
+      const currentUser = auth().currentUser;
+      if (currentUser) {
+        const userId = currentUser.uid;
+        setUserId(userId);
+        
+        try {
+          const userName = await AsyncStorage.getItem(`userName_${userId}`);
+          if (userName) {
+            setUserName(userName);
+          } else {
+            const userRef = database().ref(`users/${userId}`);
+            userRef.once('value').then((snapshot) => {
+              const userData = snapshot.val();
+              if (userData) {
+                const userName = userData.name || '';
+                AsyncStorage.setItem(`userName_${userId}`, userName); // Store the fetched username in AsyncStorage
+                setUserName(userName);
+              }
+            });
+          }
+        } catch (error) {
+          console.log('Error retrieving username from AsyncStorage:', error);
         }
-      });
-    }
+      }
+    };
+
+    fetchUserName();
 
     const onAdsValueChange = (snapshot: any) => {
       const adsData = snapshot.val();
@@ -74,8 +87,7 @@ const HomePage = ({ navigation }: any) => {
   }, []);
 
   const handleAdPress = (ad: Ad) => {
-    console.log("heloo",userName)
-    navigation.navigate('AdDetails', { ad,userid:userIds,username:userName });
+    navigation.navigate('AdDetails', { ad, userid: userIds, username: userName });
   };
 
   const showLogoutConfirmation = () => {

@@ -12,6 +12,8 @@ import {
   Alert
 } from "react-native";
 import auth from '@react-native-firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 const LoginPage = ({ navigation }: any) => {
   const [email, setEmail] = useState("");
@@ -51,13 +53,20 @@ const LoginPage = ({ navigation }: any) => {
     }
     auth()
       .signInWithEmailAndPassword(email, password)
-      .then((userCredential) => {
+      .then(async (userCredential) => {
         const user = userCredential.user;
         if (user) {
           setEmail("");
           setPassword("");
           setShowPassword(false);
           setErrortext("");
+          // Save the user data to AsyncStorage
+          try {
+            await AsyncStorage.setItem('userData', JSON.stringify(user));
+            console.log('User data saved to AsyncStorage');
+          } catch (error) {
+            console.log('Error saving user data to AsyncStorage:', error);
+          }
           navigation.navigate("HomePg", { email });
         }
       })
@@ -75,7 +84,6 @@ const LoginPage = ({ navigation }: any) => {
         }
       });
   };
-
   const handleSignUp = () => {
     navigation.navigate('SignUpPg', { email });
   };
