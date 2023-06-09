@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList } from 'react-native';
 import database from '@react-native-firebase/database';
 import auth from '@react-native-firebase/auth';
+import messaging from '@react-native-firebase/messaging';
 const ChatScreen = ({ route }: any) => {
   const { chatData,bidMsg } = route.params;
   const { senderId, receiverId, receiverName, senderName } = chatData;
@@ -70,17 +71,19 @@ const ChatScreen = ({ route }: any) => {
 
     // Check if bidPrice is not null and automatically send the message
     if (bidMsg1) {
+        console.log("bid",bidMsg1);
         handleSendMessage(bidMsg1);}
       
     // Cleanup the chat listener when the component is unmounted
     return () => {
       chatRef.off();
     }
+    
   }, []);
 
   const handleSendMessage = (msg:string) => {
     let finalMessage = msg;
-    if (message.trim() !== '') {
+    if (finalMessage.trim() !== '') {
       const isCurrentUserSender = senderId === currentUserId;
   
       if (isCurrentUserSender) {
