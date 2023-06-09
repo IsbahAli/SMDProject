@@ -53,17 +53,29 @@ const MyAdsPage = ({navigation}:any) => {
       </View>
 
       <ScrollView horizontal>
-        <View style={styles.previewsContainer}>
-          {filteredAds.map((ad, index) => (
-            <TouchableOpacity key={index} style={styles.adPreview} onPress={() => handleAdPress(ad)}>
-              {ad.images.length > 0 && <Image source={{ uri: ad.images[0] }} style={styles.adImage} />}
-              <Text style={styles.adTitle}>{ad.title}</Text>
-              <Text style={styles.adDescription}>{ad.description}</Text>
-              <Text style={styles.adDescription}>PKR. {ad.price}</Text>
-              {/* Add other ad details as needed */}
-            </TouchableOpacity>
-          ))}
-        </View>
+      <View style={styles.previewsContainer}>
+    {filteredAds.map((ad, index) => {
+      let adImages: string[] = [];
+
+      if (typeof ad.images === 'string') {
+        adImages = [ad.images];
+      } else if (Array.isArray(ad.images)) {
+        adImages = ad.images;
+      }
+
+      const displayImage = adImages.length > 0 ? adImages[0] : '';
+      
+      return (
+        <TouchableOpacity key={index} style={styles.adPreview} onPress={() => handleAdPress(ad)}>
+          {ad.images && ad.images.length > 0 && <Image source={{ uri: displayImage }} style={styles.adImage} />}
+          <Text style={styles.adTitle}>{ad.title}</Text>
+          <Text style={styles.adDescription}>{ad.description}</Text>
+          <Text style={styles.adDescription}>PKR. {ad.price}</Text>
+          {/* Add other ad details as needed */}
+        </TouchableOpacity>
+      );
+    })}
+  </View>
       </ScrollView>
     </View>
   );

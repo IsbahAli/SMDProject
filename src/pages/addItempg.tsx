@@ -52,12 +52,15 @@ const AddItemPage = ({ navigation }: any) => {
         setUserName(currentUser.displayName || '');
         setSellerId(currentUser.uid || null);
         Geolocation.getCurrentPosition(
-          (position:any) => {
+          (position) => {
+            
             setLatitude(position.coords.latitude);
             setLongitude(position.coords.longitude);
+            console.log(position.coords)
           },
-          (error:any) => {
-            console.log('Geolocation Error: ', error);
+          (error) => {
+            
+            console.warn(error);
           }
         );
       }
@@ -71,6 +74,8 @@ const AddItemPage = ({ navigation }: any) => {
       updateSellerName(userName);
     }
   }, [userName]);
+
+
 
   const updateSellerName = (name: string) => {
     setSellerName(name);
@@ -102,7 +107,10 @@ const AddItemPage = ({ navigation }: any) => {
       Alert.alert('Error', 'Please select at least one image.');
       return;
     }
-
+    if (!latitude || !longitude) {
+      Alert.alert('Error', 'Location coordinates are missing. Please try again.');
+      return;
+    }
     if (!sellerName || !sellerId) {
       Alert.alert('Error', 'Seller name is missing. Please try again.');
       return;
@@ -110,6 +118,16 @@ const AddItemPage = ({ navigation }: any) => {
 
     const currentUser = auth().currentUser;
     if (currentUser) {
+      const updatedItemData: ItemData = {
+        title: title,
+        condition: condition,
+        price: price,
+        location: `${latitude},${longitude}`,
+        description: description,
+        images: [], // Initialize images as an empty array
+        sellerName: sellerName || '',
+        sellerId: sellerId || '',
+      };
       const userId = currentUser.uid;
       const uploadPromises = images.map(async(image) => {
         const imageName = image.path.split('/').pop(); // Extract the image name from the path
@@ -118,28 +136,16 @@ const AddItemPage = ({ navigation }: any) => {
         await reference.putFile(image.path)
         const url1 = await reference.getDownloadURL();
         console.log("urkl",url1);
-        setUrl(url1);
+          updatedItemData.images.push(url1);
       });
       
       
       Promise.all(uploadPromises)
         .then(() => {
-          console.log("hdhd",url);
-          const updatedItemData = {
-            title: title,
-    condition: condition,
-    price: price,
-    location: location,
-    description: description,
-    sellerName: sellerName,
-    sellerId: sellerId,
-            images: url,
-          };
-          //setItemData(updatedItemData)
+          console.log(updatedItemData)
+                    //setItemData(updatedItemData)
           const newItemRef = database().ref(`users/${userId}/items`).push();
           const newItemKey = newItemRef.key;
-          console.log("HI")
-          console.log('Download URLs:', url);
           if (newItemKey) {
             newItemRef
               .set(updatedItemData)
@@ -317,17 +323,18 @@ const AddItemPage = ({ navigation }: any) => {
     {latitude && longitude && (
       <MapView
       provider={PROVIDER_GOOGLE}
-        style={styles.map}
-        initialRegion={{
-          latitude,
-          longitude,
-          latitudeDelta: 0.0922,
-          longitudeDelta: 0.0421,
-        }}
-        showsUserLocation={true}
-      >
-        <Marker coordinate={{ latitude, longitude }} />
-      </MapView>
+      style={styles.map}
+      initialRegion={{
+        latitude: latitude || 0,
+        longitude: longitude || 0,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+      }}
+      showsUserLocation={true}
+    >
+      {latitude && longitude && <Marker coordinate={{ latitude, longitude }} />}
+    </MapView>
+    
     )}
   </View>
 
