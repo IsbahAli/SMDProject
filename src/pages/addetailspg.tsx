@@ -1,39 +1,49 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Modal, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Modal, TouchableOpacity, Image, Alert, TextInput } from 'react-native';
 import Swiper from 'react-native-swiper';
 
 const AdDetailsPage = ({ navigation, route }: any) => {
-  const { ad, userid,username } = route.params;
-  console.log("hid",username);
+  const { ad, userid, username } = route.params;
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const [modalVisible, setModalVisible] = useState<boolean>(false);
-
+  const [bidPrice,setBidPrice]=useState('');
   const handleImageClick = (index: number) => {
     setSelectedImageIndex(index);
     setModalVisible(true);
   };
-
   const handleChat = () => {
-    // Compare the seller ID with the current user's ID
-    if (ad.sellerId !== userid) {
-      // Get the necessary data to initiate the chat, such as the user ID or ad details
-      const chatData = {
-        receiverId: userid,
-        senderId: ad.sellerId, // ... add any other relevant data
-        senderName: ad.sellerName,
-        receiverName:username
-      };
-      console.log("TEsting212",chatData);
-      // Navigate to the chat screen and pass the chat data
-      navigation.navigate('ChatScreen', { chatData });
-    }
-  };
+    const minBidPrice = 0.6 * parseInt(ad.price); // Calculate 40% of ad price
 
+    if (parseInt(bidPrice) >= minBidPrice && ad.sellerId !== userid) {
+      // Send the bid to the chat screen
+      
+        // Get the necessary data to initiate the chat, such as the user ID or ad details
+        const chatData = {
+          receiverId: userid,
+          senderId: ad.sellerId, // ... add any other relevant data
+          senderName: ad.sellerName,
+          receiverName:username
+        };
+        console.log("TEsting212",chatData);
+      // Navigate to the chat screen and pass the chat data
+      const bidMessage = `Bid Price: ${bidPrice} for ${ad.title}`;
+      navigation.navigate('ChatScreen', { chatData:chatData, bidMsg:bidMessage});
+    } else {
+      // Display an alert that the bid price is too low
+      Alert.alert(
+        'Invalid Bid',
+        `Bid price should be at least ${minBidPrice}`,
+        [{ text: 'OK', onPress: () => console.log('OK Pressed') }]
+      );
+    }
+  }; 
+
+  
   return (
     <ScrollView style={styles.container}>
       <View style={styles.imageContainer}>
         <Swiper loop={false} showsPagination={false} index={selectedImageIndex}>
-          {ad.images.map((image: string, index: number) => (
+          {(Array.isArray(ad.images) ? ad.images : [ad.images]).map((image: string, index: number) => (
             <TouchableOpacity key={index} onPress={() => handleImageClick(index)}>
               <Image source={{ uri: image }} style={styles.image} resizeMode="contain" />
             </TouchableOpacity>
@@ -55,7 +65,7 @@ const AdDetailsPage = ({ navigation, route }: any) => {
         <Modal animationType="slide" visible={modalVisible}>
           <View style={styles.modalContainer}>
             <Swiper loop={false} showsPagination={false} index={selectedImageIndex}>
-              {ad.images.map((image: string, index: number) => (
+              {(Array.isArray(ad.images) ? ad.images : [ad.images]).map((image: string, index: number) => (
                 <TouchableOpacity
                   key={index}
                   onPress={() => handleImageClick(index)}
@@ -73,14 +83,24 @@ const AdDetailsPage = ({ navigation, route }: any) => {
         </Modal>
       )}
 
-      {ad.sellerId !== userid && (
-        <TouchableOpacity onPress={handleChat} style={styles.chatButton}>
-          <Text style={styles.chatButtonText}>Chat with Seller</Text>
-        </TouchableOpacity>
-      )}
+{ad.sellerId !== userid && (
+              <View style={styles.bidContainer}>
+                <TextInput
+                  style={styles.bidInput}
+                  placeholder="Enter your bid price"
+                  onChangeText={(text) => setBidPrice(text)}
+                  value={bidPrice}
+                  keyboardType="numeric"
+                />
+                <TouchableOpacity onPress={handleChat} style={styles.bidButton}>
+                  <Text style={styles.bidButtonText}>Bid</Text>
+                </TouchableOpacity>
+              </View>
+            )}
     </ScrollView>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -157,6 +177,29 @@ const styles = StyleSheet.create({
   chatButtonText: {
     color: 'white',
     fontSize: 18,
+    fontWeight: 'bold',
+  },
+  bidContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  bidInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginRight: 10,
+  },
+  bidButton: {
+    backgroundColor: 'blue',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 5,
+  },
+  bidButtonText: {
+    color: 'white',
     fontWeight: 'bold',
   },
 });

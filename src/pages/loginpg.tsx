@@ -53,20 +53,13 @@ const LoginPage = ({ navigation }: any) => {
     }
     auth()
       .signInWithEmailAndPassword(email, password)
-      .then(async (userCredential) => {
+      .then((userCredential) => {
         const user = userCredential.user;
         if (user) {
           setEmail("");
           setPassword("");
           setShowPassword(false);
           setErrortext("");
-          // Save the user data to AsyncStorage
-          try {
-            await AsyncStorage.setItem('userData', JSON.stringify(user));
-            console.log('User data saved to AsyncStorage');
-          } catch (error) {
-            console.log('Error saving user data to AsyncStorage:', error);
-          }
           navigation.navigate("HomePg", { email });
         }
       })
@@ -84,6 +77,7 @@ const LoginPage = ({ navigation }: any) => {
         }
       });
   };
+
   const handleSignUp = () => {
     navigation.navigate('SignUpPg', { email });
   };

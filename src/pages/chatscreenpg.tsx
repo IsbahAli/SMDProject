@@ -3,12 +3,11 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList } from 'r
 import database from '@react-native-firebase/database';
 import auth from '@react-native-firebase/auth';
 const ChatScreen = ({ route }: any) => {
-  const { chatData } = route.params;
-  console.debug("ba",chatData);
+  const { chatData,bidMsg } = route.params;
   const { senderId, receiverId, receiverName, senderName } = chatData;
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<any[]>([]);
-
+  const [bidMsg1, setBidMsg] = useState(route.params?.bidMsg || '');
   // Reference to the chat node in Firebase Realtime Database
   const chatRef = database().ref('chats');
   const currentUser = auth().currentUser;
@@ -69,27 +68,34 @@ const ChatScreen = ({ route }: any) => {
     // Load the chat history for the current user
     loadChatHistory(senderId, receiverId);
 
+    // Check if bidPrice is not null and automatically send the message
+    if (bidMsg1) {
+        handleSendMessage(bidMsg1);}
+      
     // Cleanup the chat listener when the component is unmounted
     return () => {
       chatRef.off();
-    };
+    }
   }, []);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = (msg:string) => {
+    let finalMessage = msg;
     if (message.trim() !== '') {
-        const isCurrentUserSender = senderId === currentUserId;
-
-        if (isCurrentUserSender) {
-          saveMessage(senderId, receiverId, message, senderName, receiverName);
-        } else {
-          saveMessage(receiverId, senderId, message, receiverName, senderName);
-        }
-        
+      const isCurrentUserSender = senderId === currentUserId;
+  
+      if (isCurrentUserSender) {
+        saveMessage(senderId, receiverId, finalMessage, senderName, receiverName);
+      } else {
+        saveMessage(receiverId, senderId, finalMessage, receiverName, senderName);
+      }
+      console.log("msf", finalMessage);
+  
       // Clear the input field
       setMessage('');
+      // Update the bidPrice state with the updatedBidPrice value
     }
   };
-
+  
   return (
     <View style={styles.container}>
       <Text style={styles.headerText}>{senderName}</Text>
@@ -116,7 +122,7 @@ const ChatScreen = ({ route }: any) => {
           value={message}
           onChangeText={(text) => setMessage(text)}
         />
-        <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
+        <TouchableOpacity style={styles.sendButton} onPress={() => handleSendMessage(message)}>
           <Text style={styles.sendButtonText}>Send</Text>
         </TouchableOpacity>
       </View>

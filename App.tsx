@@ -4,7 +4,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LoginPage from './src/pages/loginpg';
 import SignUpPage from './src/pages/signuppg';
 import SplashPage from './src/pages/splashpg';
-// import DrawerNavigator from './src/pages/drawerNavigatorpg';
 import HomeTabs from './src/pages/hometabs';
 import ProfilePage from './src/pages/profilepg';
 import AdDetailsPage from './src/pages/addetailspg';

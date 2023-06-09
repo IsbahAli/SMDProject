@@ -1,19 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Image, BackHandler, Alert, Modal, Pressable } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import database from '@react-native-firebase/database';
 import auth from '@react-native-firebase/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
 interface Ad {
   title: string;
   description: string;
   price: string;
   location: string;
   condition: string;
-  images: string[]; // Array of image URLs
-  sellerName: string; 
-  sellerId:string;// Seller's name
-  // Add other ad properties as needed
+  images: string[];
+  sellerName: string;
+  sellerId:string;
 }
 
 const HomePage = ({ navigation }: any) => {
@@ -22,6 +20,7 @@ const HomePage = ({ navigation }: any) => {
   const [userName, setUserName] = useState('');
   const [userImage, setUserImage] = useState('');
   const [userIds, setUserId] = useState('');
+  const [displayImage,setImageDis]=useState('');
   const [logoutConfirmationVisible, setLogoutConfirmationVisible] = useState(false);
 
   useEffect(() => {
@@ -39,57 +38,63 @@ const HomePage = ({ navigation }: any) => {
   }, [navigation]);
 
   useEffect(() => {
-    const adsRef = database().ref('ads');
-    adsRef.once('value').then((snapshot) => {
-      const adsData = snapshot.val();
-      const adsArray = adsData ? Object.values(adsData) : [];
-      setAds(adsArray as Ad[]);
-    });
-
-    const fetchUserName = async () => {
-      const currentUser = auth().currentUser;
-      if (currentUser) {
-        const userId = currentUser.uid;
-        setUserId(userId);
-        
-        try {
-          const userName = await AsyncStorage.getItem(`userName_${userId}`);
-          if (userName) {
-            setUserName(userName);
-          } else {
-            const userRef = database().ref(`users/${userId}`);
-            userRef.once('value').then((snapshot) => {
-              const userData = snapshot.val();
-              if (userData) {
-                const userName = userData.name || '';
-                AsyncStorage.setItem(`userName_${userId}`, userName); // Store the fetched username in AsyncStorage
-                setUserName(userName);
-              }
-            });
-          }
-        } catch (error) {
-          console.log('Error retrieving username from AsyncStorage:', error);
-        }
+    const fetchAds = async () => {
+      try {
+        const adsRef = database().ref('ads');
+        const snapshot = await adsRef.once('value');
+        const adsData = snapshot.val();
+        console.log('User data: ', snapshot.val());
+        const adsArray = adsData ? Object.values(adsData) : [];
+        setAds(adsArray as Ad[]);
+      } catch (error) {
+        console.error('Error fetching ads', error);
       }
     };
-
-    fetchUserName();
-
+  
+    const fetchUserData = async () => {
+      try {
+        const currentUser = auth().currentUser;
+        if (currentUser) {
+          const userId = currentUser.uid;
+          const userN = currentUser.displayName;
+          setUserId(userId);
+          setUserName(userN || '');
+          const userRef = database().ref(`users/${userId}`);
+          const snapshot = await userRef.once('value');
+          const userData = snapshot.val();
+          console.log('USErData',userData);
+          if (userData) {
+            const { username, image } = userData;
+            setUserName(currentUser.displayName || '');
+            setUserImage(image);
+            // setUserName(currentUser.displayName || '');
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+  
+    const adsRef = database().ref('ads');
     const onAdsValueChange = (snapshot: any) => {
       const adsData = snapshot.val();
       const adsArray = adsData ? Object.values(adsData) : [];
       setAds(adsArray as Ad[]);
     };
+    fetchAds();
+    fetchUserData();
     adsRef.on('value', onAdsValueChange);
+  
     return () => {
       adsRef.off('value', onAdsValueChange);
     };
   }, []);
-
+  
   const handleAdPress = (ad: Ad) => {
+    
     navigation.navigate('AdDetails', { ad, userid: userIds, username: userName });
   };
-
+  
   const showLogoutConfirmation = () => {
     setLogoutConfirmationVisible(true);
   };
@@ -131,19 +136,30 @@ const HomePage = ({ navigation }: any) => {
       </View>
 
       <ScrollView horizontal>
-        <View style={styles.previewsContainer}>
-          {filteredAds.map((ad, index) => (
-            <TouchableOpacity key={index} style={styles.adPreview} onPress={() => handleAdPress(ad)}>
-              {ad.images.length > 0 && <Image source={{ uri: ad.images[0] }} style={styles.adImage} />}
-              <Text style={styles.adTitle}>{ad.title}</Text>
-              <Text style={styles.adDescription}>{ad.description}</Text>
-              <Text style={styles.adDescription}>PKR. {ad.price}</Text>
-              {/* Add other ad details as needed */}
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
+  <View style={styles.previewsContainer}>
+    {filteredAds.map((ad, index) => {
+      let adImages: string[] = [];
 
+      if (typeof ad.images === 'string') {
+        adImages = [ad.images];
+      } else if (Array.isArray(ad.images)) {
+        adImages = ad.images;
+      }
+
+      const displayImage = adImages.length > 0 ? adImages[0] : '';
+      
+      return (
+        <TouchableOpacity key={index} style={styles.adPreview} onPress={() => handleAdPress(ad)}>
+          {ad.images && ad.images.length > 0 && <Image source={{ uri: displayImage }} style={styles.adImage} />}
+          <Text style={styles.adTitle}>{ad.title}</Text>
+          <Text style={styles.adDescription}>{ad.description}</Text>
+          <Text style={styles.adDescription}>PKR. {ad.price}</Text>
+          {/* Add other ad details as needed */}
+        </TouchableOpacity>
+      );
+    })}
+  </View>
+</ScrollView>
       <Modal visible={logoutConfirmationVisible} transparent={true} animationType="fade">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>

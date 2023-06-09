@@ -1,10 +1,24 @@
-import React, { useState,useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, TextInput, Button, Text, Alert, StyleSheet, ScrollView, Image, Modal, TouchableOpacity } from 'react-native';
 import ImageCropPicker, { Image as CropPickerImage } from 'react-native-image-crop-picker';
 import auth from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
+import storage from '@react-native-firebase/storage';
+import Geolocation from '@react-native-community/geolocation';
+import MapView, { Marker } from 'react-native-maps';
+import { PROVIDER_GOOGLE } from 'react-native-maps';
+interface ItemData {
+  title: string;
+  condition: 'new' | 'used';
+  price: string;
+  location: string;
+  description: string;
+  images: string[]; // Update the type of images to string[]
+  sellerName: string;
+  sellerId: string;
+};
 
-const AddItemPage = ({ navigation }:any) => {
+const AddItemPage = ({ navigation }: any) => {
   const [images, setImages] = useState<CropPickerImage[]>([]);
   const [price, setPrice] = useState('');
   const [condition, setCondition] = useState<'new' | 'used'>();
@@ -14,15 +28,38 @@ const AddItemPage = ({ navigation }:any) => {
   const [selectedImage, setSelectedImage] = useState<CropPickerImage | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [userName, setUserName] = useState('');
-  const [sellerName,setSellerName] =useState<string | null>(null);
+  const [sellerName, setSellerName] = useState<string | null>(null);
   const [sellerId, setSellerId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [url,setUrl]=useState('');
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+
+  const [itemData, setItemData] = useState<ItemData>({
+    title: '',
+    condition: 'new',
+    price: '',
+    location: '',
+    description: '',
+    images: [], // Initialize images as an empty array
+    sellerName: '',
+    sellerId: '',
+  });
   useEffect(() => {
     const fetchUserName = async () => {
       const currentUser = auth().currentUser;
       if (currentUser) {
         setUserName(currentUser.displayName || '');
         setSellerId(currentUser.uid || null);
+        Geolocation.getCurrentPosition(
+          (position:any) => {
+            setLatitude(position.coords.latitude);
+            setLongitude(position.coords.longitude);
+          },
+          (error:any) => {
+            console.log('Geolocation Error: ', error);
+          }
+        );
       }
     };
 
@@ -41,7 +78,6 @@ const AddItemPage = ({ navigation }:any) => {
   };
 
   const handleNext = () => {
-    // Check if the userName is still loading
     if (isLoading) {
       Alert.alert('Please wait', 'User information is still loading. Please wait a moment.');
       return;
@@ -75,29 +111,43 @@ const AddItemPage = ({ navigation }:any) => {
     const currentUser = auth().currentUser;
     if (currentUser) {
       const userId = currentUser.uid;
-
-      const itemData = {
-        title,
-        condition,
-        price,
-        location,
-        description,
-        images: images.map((image) => image.path),
-        sellerName,
-        sellerId,
-      };
-
-      const newItemRef = database().ref(`users/${userId}/items`).push();
-      const newItemKey = newItemRef.key;
-
-      if (newItemKey) {
-        newItemRef
-          .set(itemData)
-          .then(() => {
-            database()
+      const uploadPromises = images.map(async(image) => {
+        const imageName = image.path.split('/').pop(); // Extract the image name from the path
+        console.log('filepath',`images/${sellerId}/${imageName}`);
+      const reference=storage().ref(`images/${sellerId}/${imageName}`);
+        await reference.putFile(image.path)
+        const url1 = await reference.getDownloadURL();
+        console.log("urkl",url1);
+        setUrl(url1);
+      });
+      
+      
+      Promise.all(uploadPromises)
+        .then(() => {
+          console.log("hdhd",url);
+          const updatedItemData = {
+            title: title,
+    condition: condition,
+    price: price,
+    location: location,
+    description: description,
+    sellerName: sellerName,
+    sellerId: sellerId,
+            images: url,
+          };
+          //setItemData(updatedItemData)
+          const newItemRef = database().ref(`users/${userId}/items`).push();
+          const newItemKey = newItemRef.key;
+          console.log("HI")
+          console.log('Download URLs:', url);
+          if (newItemKey) {
+            newItemRef
+              .set(updatedItemData)
+              .then(() => {
+                database()
               .ref('ads')
               .child(newItemKey)
-              .set(itemData)
+              .set(updatedItemData)
               .then(() => {
                 setTitle('');
                 setCondition(undefined);
@@ -107,7 +157,6 @@ const AddItemPage = ({ navigation }:any) => {
                 setImages([]);
                 setSelectedImage(null);
                 setModalVisible(false);
-                setSellerName('');
                 Alert.alert('Ad posted!');
                 navigation.navigate('HomePg');
               })
@@ -115,238 +164,300 @@ const AddItemPage = ({ navigation }:any) => {
                 console.log('Firebase Error:', error);
                 Alert.alert('Error', 'Failed to save data to Firebase.');
               });
-          })
-          .catch((error: any) => {
-            console.log('Firebase Error:', error);
-            Alert.alert('Error', 'Failed to save data to Firebase.');
-          });
-      } else {
-        Alert.alert('Error', 'Failed to generate item key.');
-      }
+                Alert.alert('Success', 'Item has been added successfully.');
+                navigation.goBack();
+              })
+              .catch((error: any) => {
+                console.log('Firebase Error:', error);
+                Alert.alert('Error', 'Failed to save data to Firebase.');
+              });
+          } else {
+            Alert.alert('Error', 'Failed to generate item key.');
+          }
+        })
+        .catch((error) => {
+          console.log('Upload Promises:', url);
+          console.log('Firebase Storage Error:', error);
+          Alert.alert('Error', 'Failed to upload images to Firebase Storage.');
+        });
     } else {
-      Alert.alert('Error', 'User not logged in.');
+      Alert.alert('Error', 'User not logged in. Please log in to continue.');
     }
   };
+
   const handleImageUpload = () => {
-    const remainingSlots = 20 - images.length;
+    const totalImages = images.length;
+  const remainingSlots = 20 - totalImages;
 
-    if (remainingSlots <= 0) {
-      Alert.alert('Error', 'You have reached the maximum limit of 20 images.');
-      return;
-    }
+  if (remainingSlots === 0) {
+    Alert.alert('Error', 'You have reached the maximum limit of 20 images.');
+    return;
+  }
 
-    const maxFiles = remainingSlots < 5 ? remainingSlots : 5; // Limit to 5 files if remaining slots are less than 5
-
+  const maxSelection = remainingSlots > 5 ? 5 : remainingSlots;
     ImageCropPicker.openPicker({
-      mediaType: 'photo',
       multiple: true,
+      mediaType: 'photo',
       cropping: true,
-      cropperToolbarTitle: 'Crop Image',
-      includeBase64: true,
-      maxFiles: maxFiles,
+      maxFiles: maxSelection,
     })
       .then((response: CropPickerImage[]) => {
-        if (response && response.length > 0) {
-          if (images.length + response.length > 20) {
-            Alert.alert('Error', 'You can select up to 20 images in total.');
-            return;
-          }
-          setImages((prevImages: CropPickerImage[]) => [...prevImages, ...response]);
-        }
+        setImages((prevImages: CropPickerImage[]) => [...prevImages, ...response]);
       })
       .catch((error) => {
         console.log('ImagePicker Error: ', error);
       });
   };
 
-  const handleConditionSelection = (selectedCondition: 'new' | 'used') => {
-    setCondition(selectedCondition);
-  };
-
-  const handleLocationSelection = (selectedLocation: string) => {
-    setLocation(selectedLocation);
-  };
-  const handleImageClick = (image: CropPickerImage) => {
-    setSelectedImage(image);
-    setModalVisible(true);
-  };
-
-  const handleImageRemove = (image: CropPickerImage) => {
-    Alert.alert('Confirmation', 'Are you sure you want to delete this image?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          const updatedImages = images.filter((img) => img.path !== image.path);
-          setImages(updatedImages);
-        },
-      },
-    ]);
-  };
-
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.text}>Add Images (up to 20)</Text>
-      <TouchableOpacity onPress={handleImageUpload} style={styles.button}>
-        <Text style={styles.buttonText}>Select Images</Text>
-      </TouchableOpacity>
-
-      {images.length > 0 && (
-        <View>
-          <Text style={styles.text}>Selected Images:</Text>
-          <View style={styles.imagesContainer}>
-            {images.map((image, index) => (
-              <TouchableOpacity
-                key={index}
-                onPress={() => handleImageClick(image)}
-                onLongPress={() => handleImageRemove(image)}
-              >
-                <Image source={{ uri: image.path }} style={styles.image} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      )}
-
-      <Text style={styles.text}>Add Price</Text>
-      <TextInput
-        value={price}
-        onChangeText={(text) => setPrice(text)}
-        placeholder="Enter price"
-        style={styles.input}
-      />
-
-      <Text style={styles.text}>Item Condition</Text>
-      <View style={styles.conditionButtonsContainer}>
+  const renderSelectedImages = () => {
+    return images.map((image, index) => (
+      <View key={index} style={styles.selectedImageContainer}>
         <TouchableOpacity
-          onPress={() => handleConditionSelection('new')}
-          style={[styles.button, condition === 'new' && styles.buttonSelected]}
+          onPress={() => {
+            setSelectedImage(image);
+            setModalVisible(true);
+          }}
         >
-          <Text style={styles.buttonText}>New</Text>
+          <Image source={{ uri: image.path }} style={styles.selectedImage} />
         </TouchableOpacity>
-
         <TouchableOpacity
-          onPress={() => handleConditionSelection('used')}
-          style={[styles.button, condition === 'used' && styles.buttonSelected]}
+          style={styles.removeImageButton}
+          onPress={() => handleImageRemove(index)}
         >
-          <Text style={styles.buttonText}>Used</Text>
+          <Text style={styles.removeImageButtonText}>Remove</Text>
         </TouchableOpacity>
       </View>
+    ));
+  };
+  
+  const handleImageRemove = (index: number) => {
+    setImages((prevImages: CropPickerImage[]) => {
+      const updatedImages = [...prevImages];
+      updatedImages.splice(index, 1);
+      return updatedImages;
+    });
+  };
+  
 
-      <Text style={styles.text}>Choose Location</Text>
-      <TextInput
-        value={location}
-        onChangeText={handleLocationSelection}
-        placeholder="Enter location"
-        style={styles.input}
-      />
+  return (
+    <ScrollView>
+      <View style={styles.container}>
+        <Text style={styles.heading}>Add Item</Text>
 
-      <Text style={styles.text}>Title</Text>
-      <TextInput
-        value={title}
-        onChangeText={(text) => setTitle(text)}
-        placeholder="Enter title"
-        style={styles.input}
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="Title"
+          onChangeText={(text) => setTitle(text)}
+          value={title}
+        />
 
-      <Text style={styles.text}>Description</Text>
-      <TextInput
-        value={description}
-        onChangeText={(text) => setDescription(text)}
-        placeholder="Enter description"
-        style={styles.input}
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="Price"
+          keyboardType="numeric"
+          onChangeText={(text) => setPrice(text)}
+          value={price}
+        />
 
-      <TouchableOpacity onPress={handleNext} style={styles.button}>
-        <Text style={styles.buttonText}>Next</Text>
-      </TouchableOpacity>
+        <View style={styles.conditionContainer}>
+          <Text style={styles.label}>Condition:</Text>
+          <View style={styles.conditionButtonsContainer}>
+            <TouchableOpacity
+              style={[styles.conditionButton, condition === 'new' && styles.selectedConditionButton]}
+              onPress={() => setCondition('new')}
+            >
+              <Text style={styles.conditionButtonText}>New</Text>
+            </TouchableOpacity>
 
-      {selectedImage && (
-        <Modal animationType="slide" visible={modalVisible}>
+            <TouchableOpacity
+              style={[styles.conditionButton, condition === 'used' && styles.selectedConditionButton]}
+              onPress={() => setCondition('used')}
+            >
+              <Text style={styles.conditionButtonText}>Used</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        
+        <TextInput
+          style={styles.input}
+          placeholder="Description"
+          onChangeText={(text) => setDescription(text)}
+          value={description}
+          multiline
+        />
+
+        <View style={styles.uploadContainer}>
+          <Text style={styles.label}>Upload Images:</Text>
+          <TouchableOpacity style={styles.uploadButton} onPress={handleImageUpload}>
+            <Text style={styles.uploadButtonText}>Select Images</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.selectedImagesContainer}>{renderSelectedImages()}</View>
+
+        <Modal animationType="slide" transparent={false} visible={modalVisible}>
           <View style={styles.modalContainer}>
-            <Image source={{ uri: selectedImage.path }} style={styles.modalImage} />
+            <Image source={{ uri: selectedImage?.path }} style={styles.modalImage} />
 
-            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.button}>
-              <Text style={styles.buttonText}>Close</Text>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => {
+                setSelectedImage(null);
+                setModalVisible(false);
+              }}
+            >
+              <Text style={styles.modalCloseButtonText}>Close</Text>
             </TouchableOpacity>
           </View>
         </Modal>
-      )}
+        <Text style={styles.label}>Location:</Text>
+        <View style={styles.mapContainer}>
+
+    {latitude && longitude && (
+      <MapView
+      provider={PROVIDER_GOOGLE}
+        style={styles.map}
+        initialRegion={{
+          latitude,
+          longitude,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        }}
+        showsUserLocation={true}
+      >
+        <Marker coordinate={{ latitude, longitude }} />
+      </MapView>
+    )}
+  </View>
+
+        <Button title="Next" onPress={handleNext} />
+      </View>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
-    alignItems: 'center',
-    backgroundColor: '#1cb48c',
-    paddingVertical: 20,
+    flex: 1,
+    padding: 20,
   },
-  text: {
-    fontSize: 18,
+  heading: {
+    fontSize: 24,
     fontWeight: 'bold',
-    marginVertical: 10,
-    color: 'white',
+    marginBottom: 20,
   },
   input: {
-    width: '70%',
-    height: 40,
     borderWidth: 1,
-    borderColor: 'gray',
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginBottom: 10,
-    backgroundColor: 'white',
+    borderColor: '#ccc',
+    borderRadius: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 20,
   },
-  button: {
-    width: '50%',
-    height: 40,
-    backgroundColor: 'white',
-    justifyContent: 'center',
+  conditionContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 5,
-    marginTop: 10,
+    marginBottom: 20,
   },
-  buttonText: {
+  label: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#1cb48c',
+    marginRight: 10,
   },
   conditionButtonsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '70%',
-    marginBottom: 10,
   },
-  buttonSelected: {
-    backgroundColor: 'green',
-    borderColor:'gray',
+  conditionButton: {
     borderWidth: 1,
-
+    borderColor: '#ccc',
+    borderRadius: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginRight: 10,
   },
-  imagesContainer: {
+  selectedConditionButton: {
+    backgroundColor: 'blue',
+  },
+  conditionButtonText: {
+    fontSize: 16,
+    color: '#555',
+  },
+  uploadContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  uploadButton: {
+    backgroundColor: 'blue',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 4,
+  },
+  uploadButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  selectedImagesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
-    marginTop: 10,
+    marginBottom: 20,
   },
-  image: {
+  selectedImage: {
     width: 100,
     height: 100,
-    margin: 5,
+    marginRight: 10,
+    marginBottom: 10,
   },
   modalContainer: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'black',
+    alignItems: 'center',
   },
   modalImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'contain',
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    backgroundColor: 'blue',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 4,
+  },
+  modalCloseButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  selectedImageContainer: {
+    position: 'relative',
+    marginRight: 10,
+    marginBottom: 10,
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: 'red',
+    padding: 5,
+    borderRadius: 4,
+  },
+  removeImageButtonText: {
+    color: '#fff',
+    fontSize: 12,
+  },
+  mapContainer: {
+    height: 200,
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  map: {
+    flex: 1,
   },
 });
 
