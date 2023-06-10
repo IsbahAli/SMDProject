@@ -1,18 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import database from '@react-native-firebase/database';
 import auth from '@react-native-firebase/auth';
-import messaging from '@react-native-firebase/messaging';
+
 const ChatScreen = ({ route }: any) => {
-  const { chatData,bidMsg } = route.params;
+  const { chatData, bidMsg } = route.params;
   const { senderId, receiverId, receiverName, senderName } = chatData;
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<any[]>([]);
-  const [bidMsg1, setBidMsg] = useState(route.params?.bidMsg || '');
+  const scrollViewRef = useRef<ScrollView>(null);
+
   // Reference to the chat node in Firebase Realtime Database
   const chatRef = database().ref('chats');
   const currentUser = auth().currentUser;
   const currentUserId = currentUser?.uid || '';
+
   // Function to save a message in the chat history
   const saveMessage = async (
     senderId: string,
@@ -69,54 +71,61 @@ const ChatScreen = ({ route }: any) => {
     // Load the chat history for the current user
     loadChatHistory(senderId, receiverId);
 
-    // Check if bidPrice is not null and automatically send the message
-    if (bidMsg1) {
-        console.log("bid",bidMsg1);
-        handleSendMessage(bidMsg1);}
-      
+    // Check if bidMsg is not null and automatically send the message
+    if (bidMsg) {
+      console.log('bid', bidMsg);
+      handleSendMessage(bidMsg);
+    }
+
     // Cleanup the chat listener when the component is unmounted
     return () => {
       chatRef.off();
-    }
-    
+    };
   }, []);
 
-  const handleSendMessage = (msg:string) => {
+  useEffect(() => {
+    // Scroll to the bottom of the ScrollView when messages change
+    scrollViewRef.current?.scrollToEnd({ animated: true });
+  }, [messages]);
+
+  const handleSendMessage = (msg: string) => {
     let finalMessage = msg;
     if (finalMessage.trim() !== '') {
       const isCurrentUserSender = senderId === currentUserId;
-  
+
       if (isCurrentUserSender) {
         saveMessage(senderId, receiverId, finalMessage, senderName, receiverName);
       } else {
         saveMessage(receiverId, senderId, finalMessage, receiverName, senderName);
       }
-      console.log("msf", finalMessage);
-  
+      console.log('msf', finalMessage);
+
       // Clear the input field
       setMessage('');
-      // Update the bidPrice state with the updatedBidPrice value
     }
   };
-  
+
   return (
     <View style={styles.container}>
       <Text style={styles.headerText}>{senderName}</Text>
-      <FlatList
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-            <View
-              style={
-                item.senderId === senderId
-                  ? styles.sentMessageContainer
-                  : styles.receivedMessageContainer
-              }
-            >
+      <ScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={styles.scrollViewContentContainer}
+        onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+      >
+        {messages.map((item) => (
+          <View
+            key={item.id}
+            style={
+              item.senderId === senderId
+                ? styles.sentMessageContainer
+                : styles.receivedMessageContainer
+            }
+          >
             <Text style={styles.message}>{item.message}</Text>
           </View>
-        )}
-      />
+        ))}
+      </ScrollView>
 
       <View style={styles.inputContainer}>
         <TextInput
@@ -144,6 +153,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
     textAlign: 'center',
+  },
+  scrollViewContentContainer: {
+    flexGrow: 1,
+    justifyContent: 'flex-end',
   },
   messageContainer: {
     backgroundColor: '#FFFFFF',
@@ -182,14 +195,14 @@ const styles = StyleSheet.create({
   },
   receivedMessageContainer: {
     alignSelf: 'flex-end',
-    backgroundColor: '#DCF8C5',
+    backgroundColor: '#FFFFFF',
     borderRadius: 10,
     padding: 10,
     marginBottom: 10,
   },
   sentMessageContainer: {
     alignSelf: 'flex-start',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1CB48C',
     borderRadius: 10,
     padding: 10,
     marginBottom: 10,

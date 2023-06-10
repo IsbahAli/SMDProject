@@ -22,8 +22,9 @@ const HomePage = ({ navigation }: any) => {
   const [userIds, setUserId] = useState('');
   const [displayImage,setImageDis]=useState('');
   const [logoutConfirmationVisible, setLogoutConfirmationVisible] = useState(false);
-
+  
   useEffect(() => {
+
     const backAction = () => {
       if (navigation.isFocused()) {
         showLogoutConfirmation();
@@ -43,7 +44,6 @@ const HomePage = ({ navigation }: any) => {
         const adsRef = database().ref('ads');
         const snapshot = await adsRef.once('value');
         const adsData = snapshot.val();
-        console.log('User data: ', snapshot.val());
         const adsArray = adsData ? Object.values(adsData) : [];
         setAds(adsArray as Ad[]);
       } catch (error) {
@@ -62,7 +62,6 @@ const HomePage = ({ navigation }: any) => {
           const userRef = database().ref(`users/${userId}`);
           const snapshot = await userRef.once('value');
           const userData = snapshot.val();
-          console.log('USErData',userData);
           if (userData) {
             const { username, image } = userData;
             setUserName(currentUser.displayName || '');
@@ -106,6 +105,7 @@ const HomePage = ({ navigation }: any) => {
   const handleConfirmLogout = () => {
     // Perform logout logic here
     hideLogoutConfirmation();
+    
     navigation.navigate('LoginPg'); // or navigate to any other screen after logout
   };
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, Button, Text, Alert, StyleSheet, ScrollView, Image, Modal, TouchableOpacity } from 'react-native';
+import { View, TextInput, Button, Text, Alert, StyleSheet, ScrollView, Image, Modal, TouchableOpacity, Linking } from 'react-native';
 import ImageCropPicker, { Image as CropPickerImage } from 'react-native-image-crop-picker';
 import auth from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
@@ -7,6 +7,10 @@ import storage from '@react-native-firebase/storage';
 import Geolocation from '@react-native-community/geolocation';
 import MapView, { Marker } from 'react-native-maps';
 import { PROVIDER_GOOGLE } from 'react-native-maps';
+import messaging from '@react-native-firebase/messaging';
+import axios from 'axios';
+import PushNotification from 'react-native-push-notification';
+import * as Permissions from 'react-native-permissions';
 interface ItemData {
   title: string;
   condition: 'new' | 'used';
@@ -32,9 +36,9 @@ const AddItemPage = ({ navigation }: any) => {
   const [sellerId, setSellerId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [url,setUrl]=useState('');
-  const [latitude, setLatitude] = useState<number | null>(null);
-  const [longitude, setLongitude] = useState<number | null>(null);
-
+  const [latitude, setLatitude] = useState<number>(0.0);
+  const [longitude, setLongitude] = useState<number>(0.0);
+  const [linkUrl,setlinkUrl]=useState('');
   const [itemData, setItemData] = useState<ItemData>({
     title: '',
     condition: 'new',
@@ -52,22 +56,37 @@ const AddItemPage = ({ navigation }: any) => {
         setUserName(currentUser.displayName || '');
         setSellerId(currentUser.uid || null);
         Geolocation.getCurrentPosition(
-          (position) => {
-            
-            setLatitude(position.coords.latitude);
-            setLongitude(position.coords.longitude);
-            console.log(position.coords)
+          async (position) => {
+            const currentLongitude = position.coords.longitude;
+            const currentLatitude = position.coords.latitude;
+            setLatitude(currentLatitude);
+            setLongitude(currentLongitude);
+  
+            const link = `https://www.google.com/maps/search/?api=1&query=${currentLatitude},${currentLongitude}`;
+            setlinkUrl(link);
           },
           (error) => {
-            
-            console.warn(error);
+            if (error.code ===2){
+              Alert.alert(
+                'Location Services Required',
+                'Please enable location services (GPS) to use this feature.',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => fetchUserName(),
+                  },
+                ])
+                
+            }
+            else
+            console.warn(error.message);
           }
         );
       }
     };
-
     fetchUserName();
   }, []);
+  
 
   useEffect(() => {
     if (userName) {
@@ -75,7 +94,7 @@ const AddItemPage = ({ navigation }: any) => {
     }
   }, [userName]);
 
-
+  
 
   const updateSellerName = (name: string) => {
     setSellerName(name);
@@ -115,7 +134,7 @@ const AddItemPage = ({ navigation }: any) => {
       Alert.alert('Error', 'Seller name is missing. Please try again.');
       return;
     }
-
+    
     const currentUser = auth().currentUser;
     if (currentUser) {
       const updatedItemData: ItemData = {
@@ -128,6 +147,7 @@ const AddItemPage = ({ navigation }: any) => {
         sellerName: sellerName || '',
         sellerId: sellerId || '',
       };
+      
       const userId = currentUser.uid;
       const uploadPromises = images.map(async(image) => {
         const imageName = image.path.split('/').pop(); // Extract the image name from the path
@@ -163,14 +183,17 @@ const AddItemPage = ({ navigation }: any) => {
                 setImages([]);
                 setSelectedImage(null);
                 setModalVisible(false);
-                Alert.alert('Ad posted!');
-                navigation.navigate('HomePg');
               })
               .catch((error: any) => {
                 console.log('Firebase Error:', error);
                 Alert.alert('Error', 'Failed to save data to Firebase.');
               });
-                Alert.alert('Success', 'Item has been added successfully.');
+              messaging()
+              .getToken()
+              .then(token => {
+              sendNotification(token,"Ad Posted!","Your ad has been posted successfully.");
+            });
+                
                 navigation.goBack();
               })
               .catch((error: any) => {
@@ -189,6 +212,18 @@ const AddItemPage = ({ navigation }: any) => {
     } else {
       Alert.alert('Error', 'User not logged in. Please log in to continue.');
     }
+  };
+  const mapUrl = `geo:${latitude},${longitude}`;
+  const openMap = () => {
+    Linking.canOpenURL(mapUrl)
+      .then((supported) => {
+        if (!supported) {
+          console.log("Map navigation is not supported on this device.");
+        } else {
+          return Linking.openURL(mapUrl);
+        }
+      })
+      .catch((error) => console.log(error));
   };
 
   const handleImageUpload = () => {
@@ -244,15 +279,62 @@ const AddItemPage = ({ navigation }: any) => {
     });
   };
   
+  // Configure the library
+PushNotification.configure({
+  onNotification: function (notification) {
+    console.log('Notification received:', notification);
+    // Add your logic to handle the notification here
+  },
+});
+  const sendNotification = async (token:any, title:string, body:string) => {
+    try {
+      const serverKey =
+        "AAAAN3cVBRQ:APA91bF-rhabDplVtrvLjgpkNpJ-43fI8CBsdB_FVCzvg0NEPhr-zWB9a7Ns1aThchK7P9FBuT8QiZwGpTL15S7h2OiW1bLVdJ0kMR1wXmMh0AhPD7kP9U8Cr_btpR7bJOdVDl1DdtwQ";
+      const message = {
+        to: token,
+        notification: {
+          title: title,
+          body: body,
+        },
+      };
+
+      await axios.post("https://fcm.googleapis.com/fcm/send", message, {
+        headers: {
+          Authorization: `key=${serverKey}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log("Notification sent successfully");
+      PushNotification.configure({
+        permissions: {
+          alert: true,
+          badge: true,
+          sound: true,
+        },
+      })
+      PushNotification.localNotification({
+        title: title,
+        message: body,
+        vibrate:true,
+        vibration: 300
+
+        
+      });
+    } catch (error) {
+      console.log("Error sending notification:", error);
+    }
+  };
 
   return (
-    <ScrollView>
+    <ScrollView style={{flex:1,backgroundColor:'#1cb48c'}}>
       <View style={styles.container}>
         <Text style={styles.heading}>Add Item</Text>
 
         <TextInput
           style={styles.input}
           placeholder="Title"
+          placeholderTextColor="white"
           onChangeText={(text) => setTitle(text)}
           value={title}
         />
@@ -261,6 +343,7 @@ const AddItemPage = ({ navigation }: any) => {
           style={styles.input}
           placeholder="Price"
           keyboardType="numeric"
+          placeholderTextColor="white"
           onChangeText={(text) => setPrice(text)}
           value={price}
         />
@@ -288,6 +371,7 @@ const AddItemPage = ({ navigation }: any) => {
         <TextInput
           style={styles.input}
           placeholder="Description"
+          placeholderTextColor="white"
           onChangeText={(text) => setDescription(text)}
           value={description}
           multiline
@@ -318,9 +402,9 @@ const AddItemPage = ({ navigation }: any) => {
           </View>
         </Modal>
         <Text style={styles.label}>Location:</Text>
+        <Text onPress={openMap} style={styles.input1}>{linkUrl}</Text>
+        {/* <ScrollView>
         <View style={styles.mapContainer}>
-
-    {latitude && longitude && (
       <MapView
       provider={PROVIDER_GOOGLE}
       style={styles.map}
@@ -332,13 +416,20 @@ const AddItemPage = ({ navigation }: any) => {
       }}
       showsUserLocation={true}
     >
-      {latitude && longitude && <Marker coordinate={{ latitude, longitude }} />}
+      <Marker coordinate={{ latitude, longitude }} />
     </MapView>
     
-    )}
+    
   </View>
+  </ScrollView> */}
 
-        <Button title="Next" onPress={handleNext} />
+  <TouchableOpacity
+  style={[styles.button]}
+  onPress={handleNext}
+>
+  <Text style={styles.buttonText}>Next</Text>
+</TouchableOpacity>
+
       </View>
     </ScrollView>
   );
@@ -347,30 +438,45 @@ const AddItemPage = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    padding:20,
+    backgroundColor: '#1cb48c', // Set background color
   },
   heading: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 20,
+    color:'white'
+  },
+  
+  input1: {
+    height: 80,
+    borderRadius: 10,
+    padding: 10,
+    backgroundColor: '#1cb48c', // Set input background color
+    color: 'white',
+    textDecorationLine: 'underline',
   },
   input: {
+    height: 50,
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 4,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    borderColor: 'white',
+    borderRadius: 10,
+    padding: 10,
+    backgroundColor: '#1cb48c', // Set input background color
+    color: 'white',
     marginBottom: 20,
   },
   conditionContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
+    
   },
   label: {
     fontSize: 16,
     fontWeight: 'bold',
     marginRight: 10,
+    color:"white"
   },
   conditionButtonsContainer: {
     flexDirection: 'row',
@@ -384,7 +490,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   selectedConditionButton: {
-    backgroundColor: 'blue',
+    backgroundColor: 'white',
   },
   conditionButtonText: {
     fontSize: 16,
@@ -394,10 +500,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
+    
   },
   uploadButton: {
-    backgroundColor: 'blue',
+    backgroundColor: '#1cb48c',
     paddingVertical: 10,
+    borderColor:'white',
+    borderWidth:1,
     paddingHorizontal: 20,
     borderRadius: 4,
   },
@@ -431,7 +540,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 20,
     right: 20,
-    backgroundColor: 'blue',
+    backgroundColor: '#1cb48c',
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 4,
@@ -459,12 +568,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   mapContainer: {
-    height: 200,
-    marginTop: 20,
-    marginBottom: 20,
+    flex:1,
   },
   map: {
-    flex: 1,
+    height:"50%",
+    width:"50%"
+  },
+  button: {
+    width: '70%',
+    height: 50,
+    backgroundColor: 'white', // Set button background color
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderColor: 'white',
+    borderWidth: 1,
+    alignSelf:'center'
+  },
+  buttonText: {
+    color: '#1cb48c',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

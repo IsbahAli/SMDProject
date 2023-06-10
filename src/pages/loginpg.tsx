@@ -13,10 +13,12 @@ import {
 } from "react-native";
 import auth from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useIsFocused } from '@react-navigation/native';
 
 
 const LoginPage = ({ navigation }: any) => {
   const [email, setEmail] = useState("");
+  const IsFocused=useIsFocused()
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [initializing, setInitializing] = useState(true);
@@ -29,10 +31,29 @@ const LoginPage = ({ navigation }: any) => {
     if (initializing) setInitializing(false);
   }
 
+const setShoredValue= async ()=>{
+ AsyncStorage.getItem('email').then((res)=>{
+  const newString=res||""
+    setEmail(newString)
+  })
+ AsyncStorage.getItem('password').then((res)=>{
+  const newString=res||""
+  setPassword(newString)
+ })
+  
+}
+
+
+
+useEffect(()=>{
+  setShoredValue()
+},[])
+
+
   useEffect(() => {
-    const subscriber = auth().onAuthStateChanged(onAuthStateChanged);
+    const subscriber = auth().onAuthStateChanged(onAuthStateChanged)
     return subscriber;
-  }, []);
+  }, [navigation,IsFocused]);
 
   if (initializing) return null;
 
@@ -40,8 +61,15 @@ const LoginPage = ({ navigation }: any) => {
     setShowPassword(!showPassword);
   };
 
-  const handleLogin = () => {
+  const handleLogin =  async () => {
     console.log(email, " ", password);
+    if(email&&password){
+    AsyncStorage.setItem("email",email)
+    AsyncStorage.setItem("password",password)
+
+    }
+    
+    
     setErrortext("");
     if (!email) {
       Alert.alert("Please fill Email");
@@ -115,11 +143,11 @@ const LoginPage = ({ navigation }: any) => {
           />
         </View>
       </TouchableOpacity>
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity onPress={handleLogin}>
+      <TouchableOpacity  onPress={handleLogin}  style={styles.buttonContainer}>
+        
           <Text style={styles.input1}>Login</Text>
-        </TouchableOpacity>
-      </View>
+        
+      </TouchableOpacity>
       <Text style={styles.text1}>Don't have an account?</Text>
       <View>
         <TouchableOpacity onPress={handleSignUp}>
@@ -161,7 +189,6 @@ const styles = StyleSheet.create({
     color: '#1cb48c',
     fontWeight: 'bold',
     fontSize: 20,
-    backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, TouchableOpacity, Text, Alert } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Text, Alert, Image, Dimensions } from 'react-native';
 import auth from '@react-native-firebase/auth';
 
 const MainProfilePage = ({ navigation }: any) => {
@@ -13,6 +13,7 @@ const MainProfilePage = ({ navigation }: any) => {
     auth()
       .signOut()
       .then(() => {
+        
         navigation.navigate('LoginPg');
       })
       .catch((error) => {
@@ -24,11 +25,19 @@ const MainProfilePage = ({ navigation }: any) => {
   const handleCancelLogout = () => {
     setShowLogoutConfirmation(false);
   };
-
+  
   return (
     <View style={styles.container}>
+        <View style={styles.profileContainer}>
+          <TouchableOpacity>
+            <Image source={{ uri: "https://karachithriftstore.com/wp-content/uploads/2023/03/cropped-KTS-logo.jpeg" }} style={styles.logo} />
+          </TouchableOpacity>
+          </View>
       <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Profile')}>
         <Text style={styles.buttonText}>Edit Profile</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('MyAds')}>
+        <Text style={styles.buttonText}>My Ads</Text>
       </TouchableOpacity>
       <TouchableOpacity onPress={handleLogout} style={styles.button}>
         <Text style={styles.buttonText}>Logout</Text>
@@ -50,7 +59,7 @@ const MainProfilePage = ({ navigation }: any) => {
     </View>
   );
 };
-
+const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -59,19 +68,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#1cb48c',
     padding: 16,
   },
-  button: {
-    backgroundColor: '#1cb48c',
-    borderRadius: 8,
+  profileContainer: {
     alignItems: 'center',
+    marginBottom: 20,
+    
+  },
+  logo: {
+    width: width * 0.3,
+    height: width * 0.3,
+    resizeMode: 'contain',
+  },
+  button: {
+    borderRadius: 20,
+    borderColor: 'white',
     borderWidth: 1,
-    borderColor: 'gray',
-    padding: 10,
-    marginBottom: 16,
+    width: '70%',
+    height: 45,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   buttonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+    textAlign:'center',
   },
   logoutConfirmation: {
     backgroundColor: '#f5f5f5',

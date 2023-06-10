@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Modal, TouchableOpacity, Image, Alert, TextInput } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Modal, TouchableOpacity, Image, Alert, TextInput, Linking } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import Swiper from 'react-native-swiper';
 
@@ -9,12 +9,17 @@ const AdDetailsPage = ({ navigation, route }: any) => {
   const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [bidPrice, setBidPrice] = useState('');
   const [location, setLocation] = useState<string>(ad.location);
-
+  const [linkUrl, setLinkUrl] = useState('');
   const handleImageClick = (index: number) => {
     setSelectedImageIndex(index);
     setModalVisible(true);
   };
-
+  const [latitude, longitude] = location.split(',');
+  useEffect(() => {
+    
+    const link = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+    setLinkUrl(link);
+  }, []);
   const handleChat = () => {
     const minBidPrice = 0.6 * parseInt(ad.price); // Calculate 40% of ad price
 
@@ -25,7 +30,7 @@ const AdDetailsPage = ({ navigation, route }: any) => {
         senderName: ad.sellerName,
         receiverName: username,
       };
-      
+
       const bidMessage = `Bid Price: ${bidPrice} for ${ad.title}`;
       navigation.navigate('ChatScreen', { chatData: chatData, bidMsg: bidMessage });
     } else {
@@ -37,7 +42,20 @@ const AdDetailsPage = ({ navigation, route }: any) => {
     }
   };
 
-  const [latitude, longitude] = location.split(',');
+  
+  const mapUrl = `geo:${latitude},${longitude}`;
+  const openMap = () => {
+    Linking.canOpenURL(mapUrl)
+      .then((supported) => {
+        if (!supported) {
+          console.log("Map navigation is not supported on this device.");
+        } else {
+          return Linking.openURL(mapUrl);
+        }
+      })
+      .catch((error) => console.log(error));
+  };
+
 
   return (
     <ScrollView style={styles.container}>
@@ -55,24 +73,26 @@ const AdDetailsPage = ({ navigation, route }: any) => {
         <Text style={styles.title}>{ad.title}</Text>
         <Text style={styles.description}>{ad.description}</Text>
         <Text style={styles.details}>Price: {ad.price}</Text>
-
-        <MapView
-          style={styles.map}
-          initialRegion={{
-            latitude: parseFloat(latitude),
-            longitude: parseFloat(longitude),
-            latitudeDelta: 0.0922,
-            longitudeDelta: 0.0421,
-          }}
-        >
-          <Marker
-            coordinate={{
+        <View style={styles.mapContainer}>
+          <Text style={styles.details}>Location:</Text>
+          <Text onPress={openMap} style={styles.details1}>{linkUrl}</Text>
+          {/* <MapView
+            style={styles.map}
+            initialRegion={{
               latitude: parseFloat(latitude),
               longitude: parseFloat(longitude),
+              latitudeDelta: 0.0922,
+              longitudeDelta: 0.0421,
             }}
-          />
-        </MapView>
-
+          >
+            <Marker
+              coordinate={{
+                latitude: parseFloat(latitude),
+                longitude: parseFloat(longitude),
+              }}
+            />
+          </MapView> */}
+        </View>
         <Text style={styles.details}>Condition: {ad.condition}</Text>
         <Text style={styles.details}>Seller: {ad.sellerName}</Text>
       </View>
@@ -126,6 +146,13 @@ const styles = StyleSheet.create({
     height: 300,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  details1: {
+    fontSize: 16,
+    marginBottom: 5,
+    textAlign: 'center',
+    textDecorationLine: 'underline',
   },
   image: {
     width: '100%',
@@ -217,10 +244,14 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
   },
+
+  mapContainer: {
+    flex: 1,
+    backgroundColor: 'white'
+  },
   map: {
-    width: '100%',
-    height: 200,
-    marginVertical: 10,
+    height: "100%",
+    width: "100%"
   },
 });
 

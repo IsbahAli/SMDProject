@@ -84,16 +84,17 @@ const ChatPage = ({ navigation }: any) => {
         data={chats}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <TouchableOpacity
+            <TouchableOpacity
             style={styles.chatItem}
             onPress={() => handleChatItemClick(item)}
-          >
+            >
             <Text style={styles.chatItemText}>
-              {item.senderId === currentUserId ? item.receiverName : item.senderName}
+                {item.senderId === currentUserId ? item.receiverName : item.senderName}
             </Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
         )}
-      />
+        />
+
     </View>
   );
 };

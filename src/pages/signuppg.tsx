@@ -17,14 +17,16 @@ const SignUpPage = ({ navigation, route }: any) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errortext, setErrortext] = useState('');
-
+  const [showPassword1, setShowPassword1] = useState(false);
   const emailInputRef = createRef<TextInput>();
   const passwordInputRef = createRef<TextInput>();
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
-
+  const togglePasswordVisibility1 = () => {
+    setShowPassword1(!showPassword1);
+  };
   const handleSignUp = () => {
     setErrortext('');
 
@@ -36,8 +38,19 @@ const SignUpPage = ({ navigation, route }: any) => {
       Alert.alert('Please fill Email');
       return;
     }
+    if (!isEmailValid(email)) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address');
+      return;
+    }
     if (!password) {
       Alert.alert('Please fill Password');
+      return;
+    }
+    if (!isPasswordValid(password)) {
+      Alert.alert(
+        'Invalid Password',
+        'Password must be at least 8 characters long and contain a special character'
+      );
       return;
     }
     if (password !== confirmPassword) {
@@ -78,6 +91,19 @@ const SignUpPage = ({ navigation, route }: any) => {
       });
   };
 
+  const isEmailValid = (email: string) => {
+    // Simple email validation regex pattern
+    const emailPattern = /\S+@\S+\.\S+/;
+    return emailPattern.test(email);
+  };
+
+  const isPasswordValid = (password: string) => {
+    // Password validation regex pattern
+    // At least 8 characters and contains a special character
+    const passwordPattern = /^(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    return passwordPattern.test(password);
+  };
+
   const handlePasswordChange = (password: string) => {
     setPassword(password);
   };
@@ -113,7 +139,7 @@ const SignUpPage = ({ navigation, route }: any) => {
           placeholder="Password"
           placeholderTextColor="white"
           secureTextEntry={!showPassword}
-          onChangeText={handlePasswordChange} // Updated handler function
+          onChangeText={handlePasswordChange}
         />
         <MatIcons
           name={showPassword ? 'visibility-off' : 'visibility'}
@@ -128,14 +154,14 @@ const SignUpPage = ({ navigation, route }: any) => {
           style={styles.input}
           placeholder="Confirm Password"
           placeholderTextColor="white"
-          secureTextEntry={!showPassword}
-          onChangeText={handleConfirmPasswordChange} // Updated handler function
+          secureTextEntry={!showPassword1}
+          onChangeText={handleConfirmPasswordChange}
         />
         <MatIcons
-          name={showPassword ? 'visibility-off' : 'visibility'}
+          name={showPassword1 ? 'visibility-off' : 'visibility'}
           size={24}
           color="white"
-          onPress={togglePasswordVisibility}
+          onPress={togglePasswordVisibility1}
           style={styles.icon}
         />
       </View>
@@ -178,7 +204,6 @@ const styles = StyleSheet.create({
     color: '#1cb48c',
     fontWeight: 'bold',
     fontSize: 20,
-    backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -1,16 +1,15 @@
-import {View, Text, Image} from 'react-native';
-import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import React from 'react';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import MatIcons from 'react-native-vector-icons/MaterialIcons';
-import ProfilePage from './profilepg';
-import MainProfilePage from './profilescr';
 import HomePage from './homepg';
+import ChatPage from './chatpg';
 import AddItemPage from './addItempg';
 import MyAdsPage from './myadpg';
-import ChatPage from './chatpg';
-
-// import {createDrawerNavigator} from '@react-navigation/drawer';
+import MainProfilePage from './profilescr';
+import GMap from './gmaps';
 
 const Tab = createBottomTabNavigator();
+
 const HomeTabs = () => {
   return (
     <Tab.Navigator>
@@ -18,108 +17,56 @@ const HomeTabs = () => {
         name="Home"
         component={HomePage}
         options={{
-          tabBarIcon: tabInfo => {
-            return (
-              <MatIcons
-                name="home"
-                size={24}
-                color={tabInfo.focused ? 'black' : '#8e8e93'}
-              />
-            );
-          },
-          tabBarLabelStyle: {
-            fontSize: 12,
-            color: 'black',
-          },
+          tabBarIcon: tabInfo => (
+            <MatIcons
+              name="home"
+              size={24}
+              color={tabInfo.focused ? 'black' : '#8e8e93'}
+            />
+          ),
+          headerShown: false, // Hide the header at the top
         }}
       />
       <Tab.Screen
         name="Chats"
         component={ChatPage}
         options={{
-          tabBarIcon: tabInfo => {
-            return (
-              <MatIcons
-                name="settings"
-                size={24}
-                color={tabInfo.focused ? '#006600' : '#8e8e93'}
-              />
-            );
-          },
+          tabBarIcon: tabInfo => (
+            <MatIcons
+              name="chat"
+              size={24}
+              color={tabInfo.focused ? 'black' : '#8e8e93'}
+            />
+          ),
+          headerShown: false, // Hide the header at the top
         }}
       />
-      {/* <Tab.Screen
-        name="Sell"
-        component={Profile}
-        options={{
-          tabBarIcon: tabInfo => {
-            return (
-              <MatIcons
-                name="account-circle"
-                size={24}
-                color={tabInfo.focused ? '#006600' : '#8e8e93'}
-              />
-            );
-          },
-        }}
-      /> */}
-      {/* <Tab.Screen name="Screen 2" component={ContextTab} /> */}
       <Tab.Screen
-        name="Add"
+        name="Post Ad"
         component={AddItemPage}
         options={{
-          tabBarIcon: tabInfo => {
-            return (
-              <MatIcons
+          tabBarIcon: tabInfo => (
+            <MatIcons
               name={tabInfo.focused ? 'add-circle' : 'add-circle-outline'}
-              size={28}
+              size={24}
               color="black"
-              />
-            );
-          },
-          tabBarLabelStyle: {
-            fontSize: 12,
-            color: 'black',
-          },
-        }}
-      />
-      <Tab.Screen
-        name="My Ads"
-        component={MyAdsPage}
-        options={{
-          tabBarIcon: tabInfo => {
-            return (
-              <MatIcons
-              name={tabInfo.focused ? 'favorite' : 'favorite-border'}
-              
-              size={28}
-              color="black"
-              />
-            );
-          },
-          tabBarLabelStyle: {
-            fontSize: 12,
-            color: 'black',
-          },
+            />
+          ),
+          headerShown: false, // Hide the header at the top
         }}
       />
       <Tab.Screen
         name="Account"
         component={MainProfilePage}
         options={{
-          tabBarIcon: tabInfo => {
-            return (
-              <MatIcons
+          tabBarIcon: tabInfo => (
+            <MatIcons
               name={tabInfo.focused ? 'person' : 'person-outline'}
               size={24}
               color="black"
-              />
-            );
-          },
-          tabBarLabelStyle: {
-            fontSize: 12,
-            color: 'black',
-          },
+            />
+          ),
+          headerShown: false, // Hide the header at the top
         }}
       />
     </Tab.Navigator>

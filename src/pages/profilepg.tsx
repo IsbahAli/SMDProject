@@ -259,12 +259,13 @@ const styles = StyleSheet.create({
   input: {
     height: 50,
     borderWidth: 1,
-    borderColor: 'gray',
+    borderColor: 'white',
     borderRadius: 10,
     padding: 10,
     backgroundColor: '#1cb48c', // Set input background color
     color: 'white',
   },
+  
   buttonContainer: {
     width: '70%',
     height: 50,
@@ -272,7 +273,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    borderColor: 'gray',
+    borderColor: 'white',
     borderWidth: 1,
   },
   buttonText: {
