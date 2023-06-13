@@ -35,10 +35,10 @@ const AddItemPage = ({ navigation }: any) => {
   const [sellerName, setSellerName] = useState<string | null>(null);
   const [sellerId, setSellerId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [url,setUrl]=useState('');
+  const [url, setUrl] = useState('');
   const [latitude, setLatitude] = useState<number>(0.0);
   const [longitude, setLongitude] = useState<number>(0.0);
-  const [linkUrl,setlinkUrl]=useState('');
+  const [linkUrl, setlinkUrl] = useState('');
   const [itemData, setItemData] = useState<ItemData>({
     title: '',
     condition: 'new',
@@ -61,32 +61,32 @@ const AddItemPage = ({ navigation }: any) => {
             const currentLatitude = position.coords.latitude;
             setLatitude(currentLatitude);
             setLongitude(currentLongitude);
-  
+
             const link = `https://www.google.com/maps/search/?api=1&query=${currentLatitude},${currentLongitude}`;
             setlinkUrl(link);
           },
           (error) => {
-            if (error.code ===2){
+            if (error.code === 2) {
               Alert.alert(
                 'Location Services Required',
-                'Please enable location services (GPS) to use this feature.',
+                'Please enable location services (GPS) to use this feature. Press OK after you enable GPS.',
                 [
                   {
                     text: 'OK',
                     onPress: () => fetchUserName(),
                   },
                 ])
-                
+
             }
             else
-            console.warn(error.message);
+              console.warn(error.message);
           }
         );
       }
     };
     fetchUserName();
   }, []);
-  
+
 
   useEffect(() => {
     if (userName) {
@@ -94,7 +94,7 @@ const AddItemPage = ({ navigation }: any) => {
     }
   }, [userName]);
 
-  
+
 
   const updateSellerName = (name: string) => {
     setSellerName(name);
@@ -134,7 +134,7 @@ const AddItemPage = ({ navigation }: any) => {
       Alert.alert('Error', 'Seller name is missing. Please try again.');
       return;
     }
-    
+
     const currentUser = auth().currentUser;
     if (currentUser) {
       const updatedItemData: ItemData = {
@@ -147,23 +147,23 @@ const AddItemPage = ({ navigation }: any) => {
         sellerName: sellerName || '',
         sellerId: sellerId || '',
       };
-      
+
       const userId = currentUser.uid;
-      const uploadPromises = images.map(async(image) => {
+      const uploadPromises = images.map(async (image) => {
         const imageName = image.path.split('/').pop(); // Extract the image name from the path
-        console.log('filepath',`images/${sellerId}/${imageName}`);
-      const reference=storage().ref(`images/${sellerId}/${imageName}`);
+        console.log('filepath', `images/${sellerId}/${imageName}`);
+        const reference = storage().ref(`images/${sellerId}/${imageName}`);
         await reference.putFile(image.path)
         const url1 = await reference.getDownloadURL();
-        console.log("urkl",url1);
-          updatedItemData.images.push(url1);
+        console.log("urkl", url1);
+        updatedItemData.images.push(url1);
       });
-      
-      
+
+
       Promise.all(uploadPromises)
         .then(() => {
           console.log(updatedItemData)
-                    //setItemData(updatedItemData)
+          //setItemData(updatedItemData)
           const newItemRef = database().ref(`users/${userId}/items`).push();
           const newItemKey = newItemRef.key;
           if (newItemKey) {
@@ -171,29 +171,29 @@ const AddItemPage = ({ navigation }: any) => {
               .set(updatedItemData)
               .then(() => {
                 database()
-              .ref('ads')
-              .child(newItemKey)
-              .set(updatedItemData)
-              .then(() => {
-                setTitle('');
-                setCondition(undefined);
-                setPrice('');
-                setLocation('');
-                setDescription('');
-                setImages([]);
-                setSelectedImage(null);
-                setModalVisible(false);
-              })
-              .catch((error: any) => {
-                console.log('Firebase Error:', error);
-                Alert.alert('Error', 'Failed to save data to Firebase.');
-              });
-              messaging()
-              .getToken()
-              .then(token => {
-              sendNotification(token,"Ad Posted!","Your ad has been posted successfully.");
-            });
-                
+                  .ref('ads')
+                  .child(newItemKey)
+                  .set(updatedItemData)
+                  .then(() => {
+                    setTitle('');
+                    setCondition(undefined);
+                    setPrice('');
+                    setLocation('');
+                    setDescription('');
+                    setImages([]);
+                    setSelectedImage(null);
+                    setModalVisible(false);
+                  })
+                  .catch((error: any) => {
+                    console.log('Firebase Error:', error);
+                    Alert.alert('Error', 'Failed to save data to Firebase.');
+                  });
+                messaging()
+                  .getToken()
+                  .then(token => {
+                    sendNotification(token, "Ad Posted!", "Your ad has been posted successfully.");
+                  });
+
                 navigation.goBack();
               })
               .catch((error: any) => {
@@ -228,14 +228,14 @@ const AddItemPage = ({ navigation }: any) => {
 
   const handleImageUpload = () => {
     const totalImages = images.length;
-  const remainingSlots = 20 - totalImages;
+    const remainingSlots = 20 - totalImages;
 
-  if (remainingSlots === 0) {
-    Alert.alert('Error', 'You have reached the maximum limit of 20 images.');
-    return;
-  }
+    if (remainingSlots === 0) {
+      Alert.alert('Error', 'You have reached the maximum limit of 20 images.');
+      return;
+    }
 
-  const maxSelection = remainingSlots > 5 ? 5 : remainingSlots;
+    const maxSelection = remainingSlots > 5 ? 5 : remainingSlots;
     ImageCropPicker.openPicker({
       multiple: true,
       mediaType: 'photo',
@@ -243,6 +243,7 @@ const AddItemPage = ({ navigation }: any) => {
       maxFiles: maxSelection,
     })
       .then((response: CropPickerImage[]) => {
+        console.log("response",response);
         setImages((prevImages: CropPickerImage[]) => [...prevImages, ...response]);
       })
       .catch((error) => {
@@ -252,6 +253,7 @@ const AddItemPage = ({ navigation }: any) => {
 
   const renderSelectedImages = () => {
     return images.map((image, index) => (
+
       <View key={index} style={styles.selectedImageContainer}>
         <TouchableOpacity
           onPress={() => {
@@ -270,7 +272,7 @@ const AddItemPage = ({ navigation }: any) => {
       </View>
     ));
   };
-  
+
   const handleImageRemove = (index: number) => {
     setImages((prevImages: CropPickerImage[]) => {
       const updatedImages = [...prevImages];
@@ -278,15 +280,15 @@ const AddItemPage = ({ navigation }: any) => {
       return updatedImages;
     });
   };
-  
+
   // Configure the library
-PushNotification.configure({
-  onNotification: function (notification) {
-    console.log('Notification received:', notification);
-    // Add your logic to handle the notification here
-  },
-});
-  const sendNotification = async (token:any, title:string, body:string) => {
+  PushNotification.configure({
+    onNotification: function (notification) {
+      console.log('Notification received:', notification);
+      // Add your logic to handle the notification here
+    },
+  });
+  const sendNotification = async (token: any, title: string, body: string) => {
     try {
       const serverKey =
         "AAAAN3cVBRQ:APA91bF-rhabDplVtrvLjgpkNpJ-43fI8CBsdB_FVCzvg0NEPhr-zWB9a7Ns1aThchK7P9FBuT8QiZwGpTL15S7h2OiW1bLVdJ0kMR1wXmMh0AhPD7kP9U8Cr_btpR7bJOdVDl1DdtwQ";
@@ -316,10 +318,10 @@ PushNotification.configure({
       PushNotification.localNotification({
         title: title,
         message: body,
-        vibrate:true,
+        vibrate: true,
         vibration: 300
 
-        
+
       });
     } catch (error) {
       console.log("Error sending notification:", error);
@@ -327,7 +329,7 @@ PushNotification.configure({
   };
 
   return (
-    <ScrollView style={{flex:1,backgroundColor:'#1cb48c'}}>
+    <ScrollView style={{ flex: 1, backgroundColor: '#1cb48c' }}>
       <View style={styles.container}>
         <Text style={styles.heading}>Add Item</Text>
 
@@ -367,7 +369,7 @@ PushNotification.configure({
           </View>
         </View>
 
-        
+
         <TextInput
           style={styles.input}
           placeholder="Description"
@@ -402,7 +404,15 @@ PushNotification.configure({
           </View>
         </Modal>
         <Text style={styles.label}>Location:</Text>
-        <Text onPress={openMap} style={styles.input1}>{linkUrl}</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Area"
+          placeholderTextColor="white"
+          onChangeText={(text) => setLocation(text)}
+          value={location}
+          multiline
+        />
+        {/* <Text onPress={openMap} style={styles.input1}>{linkUrl}</Text> */}
         {/* <ScrollView>
         <View style={styles.mapContainer}>
       <MapView
@@ -423,12 +433,12 @@ PushNotification.configure({
   </View>
   </ScrollView> */}
 
-  <TouchableOpacity
-  style={[styles.button]}
-  onPress={handleNext}
->
-  <Text style={styles.buttonText}>Next</Text>
-</TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button]}
+          onPress={handleNext}
+        >
+          <Text style={styles.buttonText}>Next</Text>
+        </TouchableOpacity>
 
       </View>
     </ScrollView>
@@ -438,16 +448,16 @@ PushNotification.configure({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding:20,
+    padding: 20,
     backgroundColor: '#1cb48c', // Set background color
   },
   heading: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 20,
-    color:'white'
+    color: 'white'
   },
-  
+
   input1: {
     height: 80,
     borderRadius: 10,
@@ -470,13 +480,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
-    
+
   },
   label: {
     fontSize: 16,
     fontWeight: 'bold',
     marginRight: 10,
-    color:"white"
+    color: "white"
   },
   conditionButtonsContainer: {
     flexDirection: 'row',
@@ -500,13 +510,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
-    
+
   },
   uploadButton: {
     backgroundColor: '#1cb48c',
     paddingVertical: 10,
-    borderColor:'white',
-    borderWidth:1,
+    borderColor: 'white',
+    borderWidth: 1,
     paddingHorizontal: 20,
     borderRadius: 4,
   },
@@ -568,11 +578,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   mapContainer: {
-    flex:1,
+    flex: 1,
   },
   map: {
-    height:"50%",
-    width:"50%"
+    height: "50%",
+    width: "50%"
   },
   button: {
     width: '70%',
@@ -583,7 +593,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderColor: 'white',
     borderWidth: 1,
-    alignSelf:'center'
+    alignSelf: 'center'
   },
   buttonText: {
     color: '#1cb48c',

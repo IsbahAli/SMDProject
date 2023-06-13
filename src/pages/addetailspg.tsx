@@ -10,6 +10,7 @@ const AdDetailsPage = ({ navigation, route }: any) => {
   const [bidPrice, setBidPrice] = useState('');
   const [location, setLocation] = useState<string>(ad.location);
   const [linkUrl, setLinkUrl] = useState('');
+  const [isLoading,setLoading]=useState(false);
   const handleImageClick = (index: number) => {
     setSelectedImageIndex(index);
     setModalVisible(true);
@@ -62,9 +63,12 @@ const AdDetailsPage = ({ navigation, route }: any) => {
       <View style={styles.imageContainer}>
         <Swiper loop={false} showsPagination={false} index={selectedImageIndex}>
           {(Array.isArray(ad.images) ? ad.images : [ad.images]).map((image: string, index: number) => (
-            <TouchableOpacity key={index} onPress={() => handleImageClick(index)}>
+              <>
               <Image source={{ uri: image }} style={styles.image} resizeMode="contain" />
-            </TouchableOpacity>
+              <Text>{image}</Text>
+              </>
+                
+           
           ))}
         </Swiper>
       </View>
@@ -75,7 +79,7 @@ const AdDetailsPage = ({ navigation, route }: any) => {
         <Text style={styles.details}>Price: {ad.price}</Text>
         <View style={styles.mapContainer}>
           <Text style={styles.details}>Location:</Text>
-          <Text onPress={openMap} style={styles.details1}>{linkUrl}</Text>
+          <Text  style={styles.details1}>{ad.location}</Text>
           {/* <MapView
             style={styles.map}
             initialRegion={{
@@ -152,7 +156,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 5,
     textAlign: 'center',
-    textDecorationLine: 'underline',
   },
   image: {
     width: '100%',
@@ -235,10 +238,12 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   bidButton: {
-    backgroundColor: 'blue',
+    backgroundColor: '#1cb48c',
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 5,
+    borderColor : 'white',
+    borderWidth: 1,
   },
   bidButtonText: {
     color: 'white',

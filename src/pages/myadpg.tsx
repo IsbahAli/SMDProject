@@ -53,29 +53,35 @@ const MyAdsPage = ({navigation}:any) => {
       </View>
 
       <ScrollView horizontal>
-      <View style={styles.previewsContainer}>
-    {filteredAds.map((ad, index) => {
-      let adImages: string[] = [];
+        {filteredAds.length > 0 ? (
+          <View style={styles.previewsContainer}>
+            {filteredAds.map((ad, index) => {
+              let adImages: string[] = [];
 
-      if (typeof ad.images === 'string') {
-        adImages = [ad.images];
-      } else if (Array.isArray(ad.images)) {
-        adImages = ad.images;
-      }
+              if (typeof ad.images === 'string') {
+                adImages = [ad.images];
+              } else if (Array.isArray(ad.images)) {
+                adImages = ad.images;
+              }
 
-      const displayImage = adImages.length > 0 ? adImages[0] : '';
-      
-      return (
-        <TouchableOpacity key={index} style={styles.adPreview} onPress={() => handleAdPress(ad)}>
-          {ad.images && ad.images.length > 0 && <Image source={{ uri: displayImage }} style={styles.adImage} />}
-          <Text style={styles.adTitle}>{ad.title}</Text>
-          <Text style={styles.adDescription}>{ad.description}</Text>
-          <Text style={styles.adDescription}>PKR. {ad.price}</Text>
-          {/* Add other ad details as needed */}
-        </TouchableOpacity>
-      );
-    })}
-  </View>
+              const displayImage = adImages.length > 0 ? adImages[0] : '';
+
+              return (
+                <TouchableOpacity key={index} style={styles.adPreview} onPress={() => handleAdPress(ad)}>
+                  {ad.images && ad.images.length > 0 && <Image source={{ uri: displayImage }} style={styles.adImage} />}
+                  <Text style={styles.adTitle}>{ad.title}</Text>
+                  <Text style={styles.adDescription}>{ad.description}</Text>
+                  <Text style={styles.adDescription}>PKR. {ad.price}</Text>
+                  {/* Add other ad details as needed */}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : (
+            <View style={styles.noAdsContainer}>
+          <Text style={styles.noAdsText}>No ads to display</Text>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -122,6 +128,21 @@ const styles = StyleSheet.create({
   adDescription: {
     fontSize: 14,
     marginBottom: 5,
+  },
+  
+  noAdsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    textAlign:'center'
+  },
+  noAdsText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    textAlign: 'center',
   },
 });
 

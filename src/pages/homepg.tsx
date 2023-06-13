@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Image, BackHandler, Alert, Modal, Pressable } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Image, BackHandler, Alert, Modal, Pressable, ActivityIndicator } from 'react-native';
 import database from '@react-native-firebase/database';
 import auth from '@react-native-firebase/auth';
 
@@ -22,7 +22,7 @@ const HomePage = ({ navigation }: any) => {
   const [userIds, setUserId] = useState('');
   const [displayImage,setImageDis]=useState('');
   const [logoutConfirmationVisible, setLogoutConfirmationVisible] = useState(false);
-  
+  const [loading,setload]=useState(true);
   useEffect(() => {
 
     const backAction = () => {
@@ -41,11 +41,13 @@ const HomePage = ({ navigation }: any) => {
   useEffect(() => {
     const fetchAds = async () => {
       try {
+        setload(true);
         const adsRef = database().ref('ads');
         const snapshot = await adsRef.once('value');
         const adsData = snapshot.val();
         const adsArray = adsData ? Object.values(adsData) : [];
         setAds(adsArray as Ad[]);
+        setload(false);
       } catch (error) {
         console.error('Error fetching ads', error);
       }
@@ -90,7 +92,6 @@ const HomePage = ({ navigation }: any) => {
   }, []);
   
   const handleAdPress = (ad: Ad) => {
-    
     navigation.navigate('AdDetails', { ad, userid: userIds, username: userName });
   };
   
@@ -105,7 +106,6 @@ const HomePage = ({ navigation }: any) => {
   const handleConfirmLogout = () => {
     // Perform logout logic here
     hideLogoutConfirmation();
-    
     navigation.navigate('LoginPg'); // or navigate to any other screen after logout
   };
 
@@ -135,31 +135,40 @@ const HomePage = ({ navigation }: any) => {
         />
       </View>
 
-      <ScrollView horizontal>
-  <View style={styles.previewsContainer}>
-    {filteredAds.map((ad, index) => {
-      let adImages: string[] = [];
 
-      if (typeof ad.images === 'string') {
-        adImages = [ad.images];
-      } else if (Array.isArray(ad.images)) {
-        adImages = ad.images;
-      }
+{loading?(<ActivityIndicator/>):(<View style={styles.container    }>
+      {filteredAds.length > 0 ? (
+        <ScrollView horizontal>
+          <View style={styles.previewsContainer}>
+            {filteredAds.map((ad, index) => {
+              let adImages: string[] = [];
 
-      const displayImage = adImages.length > 0 ? adImages[0] : '';
-      
-      return (
-        <TouchableOpacity key={index} style={styles.adPreview} onPress={() => handleAdPress(ad)}>
-          {ad.images && ad.images.length > 0 && <Image source={{ uri: displayImage }} style={styles.adImage} />}
-          <Text style={styles.adTitle}>{ad.title}</Text>
-          <Text style={styles.adDescription}>{ad.description}</Text>
-          <Text style={styles.adDescription}>PKR. {ad.price}</Text>
-          {/* Add other ad details as needed */}
-        </TouchableOpacity>
-      );
-    })}
-  </View>
-</ScrollView>
+              if (typeof ad.images === 'string') {
+                adImages = [ad.images];
+              } else if (Array.isArray(ad.images)) {
+                adImages = ad.images;
+              }
+
+              const displayImage = adImages.length > 0 ? adImages[0] : '';
+
+              return (
+                <TouchableOpacity key={index} style={styles.adPreview} onPress={() => handleAdPress(ad)}>
+                  {ad.images && ad.images.length > 0 && <Image source={{ uri: displayImage }} style={styles.adImage} />}
+                  <Text style={styles.adTitle}>{ad.title}</Text>
+                  <Text style={styles.adDescription}>{ad.description}</Text>
+                  <Text style={styles.adDescription}>PKR. {ad.price}</Text>
+                  {/* Add other ad details as needed */}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </ScrollView>
+      ) : (
+        <View style={styles.noAdsContainer}>
+          <Text style={styles.noAdsText}>No ads posted yet</Text>
+        </View>
+      )}</View>)}
+
       <Modal visible={logoutConfirmationVisible} transparent={true} animationType="fade">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
@@ -246,6 +255,16 @@ const styles = StyleSheet.create({
     color: 'gray',
     marginBottom: 5,
     textAlign: 'center',
+  },
+  noAdsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noAdsText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
   },
   modalContainer: {
     flex: 1,

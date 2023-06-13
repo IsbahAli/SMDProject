@@ -23,10 +23,13 @@ const ChatPage = ({ navigation }: any) => {
     const loadChats = async () => {
         try {
           // Retrieve the chats from the chat node where the current user is the receiver
+          console.log(currentUserId);
+          console.log('ref',chatRef);
           chatRef
             .orderByChild('receiverId')
             .equalTo(currentUserId)
             .on('value', snapshot => {
+                console.log(snapshot);
               if (snapshot.exists()) {
                 const chatData = snapshot.val();
       
@@ -52,9 +55,12 @@ const ChatPage = ({ navigation }: any) => {
       
                 // Update the chats state with the retrieved chats
                 setChats(loadedChats);
+                console.log(chats.length);
               } else {
                 // If there are no chats, set the chats state to an empty array
                 setChats([]);
+                
+                console.log(chats.length);
               }
             });
         } catch (error) {
